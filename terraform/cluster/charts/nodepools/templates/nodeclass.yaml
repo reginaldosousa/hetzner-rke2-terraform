@@ -1,0 +1,28 @@
+apiVersion: karpenter.hetzner.cloud/v1
+kind: HCloudNodeClass
+metadata:
+  name: default
+spec:
+  locations: [{{ .Values.location | quote }}]
+  # int64: Helm parses numbers as float64 and would print 1.2e+07.
+  networkID: {{ .Values.networkID | int64 }}
+  imageSelector:
+    family: ubuntu
+    version: "24.04"
+  sshKeyIDs: [{{ .Values.sshKeyID | int64 }}]
+  placementGroupStrategy: spread
+  # Private-only workers; egress goes through the NAT gateway. No firewallIDs:
+  # Hetzner can't attach firewalls to servers without a public interface.
+  enablePublicIPv4: false
+  enablePublicIPv6: false
+  labels:
+    cluster: {{ .Values.clusterName | quote }}
+    role: worker
+  userDataSecretRef:
+    {{- toYaml .Values.userDataSecret | nindent 4 }}
+  # Must match kubelet-arg in the worker userData.
+  kubelet:
+    kubeReserved:
+      cpu: 100m
+      memory: 100Mi
+  vmMemoryOverheadPercent: "7"

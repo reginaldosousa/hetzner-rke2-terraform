@@ -1,0 +1,12 @@
+# Filled in by terraform/cluster/nodepool.tf.
+clusterName: ""
+location: nbg1
+networkID: 0
+sshKeyID: 0
+userDataSecret:
+  namespace: kube-system
+  name: karpenter-worker-bootstrap
+  key: userData
+cpuLimit: "32"
+# amd64 families; add cax (arm64) only once your images are multi-arch.
+serverFamilies: [cx, cpx]
