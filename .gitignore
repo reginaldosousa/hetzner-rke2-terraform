@@ -16,3 +16,5 @@ wg/
 # Local tooling
 .remember/
 .DS_Store
+
+# Provider lock files are committed; nothing else from .terraform
