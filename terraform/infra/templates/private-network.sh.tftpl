@@ -1,0 +1,31 @@
+#!/bin/sh
+# Private-only Hetzner servers get no default route from DHCP. Route internet
+# traffic to the network router; the hcloud network route sends it on to the
+# NAT gateway. Written as netplan so it survives reboots and DHCP renewals.
+set -eu
+
+iface=""
+for _ in $(seq 1 60); do
+  iface=$(ip -o -4 route show to ${network_cidr} | awk '{print $5; exit}')
+  [ -n "$iface" ] && break
+  sleep 2
+done
+[ -n "$iface" ] || iface=$(ip -o link show | awk -F': ' '$2 != "lo" {print $2; exit}')
+
+cat > /etc/netplan/60-private-default-route.yaml <<EOF
+network:
+  version: 2
+  ethernets:
+    $iface:
+      routes:
+        - to: default
+          via: ${network_router_ip}
+          on-link: true
+      nameservers:
+        addresses: [185.12.64.1, 185.12.64.2]
+EOF
+chmod 600 /etc/netplan/60-private-default-route.yaml
+netplan apply
+
+# Wait until the NAT gateway is up before anything tries to download.
+until curl -sfI --max-time 5 https://get.rke2.io >/dev/null; do sleep 5; done
