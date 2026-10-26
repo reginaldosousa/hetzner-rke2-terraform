@@ -34,6 +34,20 @@ resource "hcloud_firewall" "gateway" {
   }
 }
 
+# Reserved separately from the server so the VPN endpoint (and every client
+# config) survives a gateway rebuild.
+resource "hcloud_primary_ip" "gateway" {
+  name          = "${var.cluster_name}-gateway"
+  type          = "ipv4"
+  location      = var.location
+  assignee_type = "server"
+  auto_delete   = false
+
+  labels = {
+    cluster = var.cluster_name
+  }
+}
+
 resource "hcloud_server" "gateway" {
   name         = "${var.cluster_name}-gateway"
   server_type  = var.gateway_server_type
@@ -44,6 +58,7 @@ resource "hcloud_server" "gateway" {
 
   public_net {
     ipv4_enabled = true
+    ipv4         = hcloud_primary_ip.gateway.id
     ipv6_enabled = true
   }
 

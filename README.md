@@ -97,7 +97,7 @@ From outside the VPN only `udp/51820` on the gateway should answer.
   (see the provider README).
 - **Adding VPN users**: add a name to `vpn_clients` and re-apply. Note this changes
   the gateway's user_data and therefore **recreates the gateway** (brief VPN + egress
-  outage, new public IP).
+  outage; the public IP is reserved and stays the same).
 
 ## Security notes
 
