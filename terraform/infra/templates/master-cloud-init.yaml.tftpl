@@ -21,7 +21,10 @@ write_files:
       tls-san:
         - ${lb_ip}
       # The hcloud CCM sets providerID hcloud://<id>, which Karpenter needs.
+      # Both are required: the first only configures the kubelet; without the
+      # second RKE2 runs its own CCM and sets an immutable rke2:// providerID.
       cloud-provider-name: external
+      disable-cloud-controller: true
       # Keep regular workloads on Karpenter-managed workers.
       node-taint:
         - "CriticalAddonsOnly=true:NoExecute"
