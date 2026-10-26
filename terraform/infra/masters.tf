@@ -44,6 +44,11 @@ resource "hcloud_server" "master" {
     lb_ip                  = local.lb_ip
     rke2_version           = var.rke2_version
     private_network_script = local.private_network_script
+    hcloud_token           = var.hcloud_token
+    network_id             = hcloud_network.main.id
+    location               = var.location
+    ccm_version            = var.ccm_chart_version
+    csi_version            = var.csi_chart_version
   })
 
   labels = {

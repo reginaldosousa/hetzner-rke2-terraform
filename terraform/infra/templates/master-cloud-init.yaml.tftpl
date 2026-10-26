@@ -23,6 +23,57 @@ write_files:
       node-taint:
         - "CriticalAddonsOnly=true:NoExecute"
 
+  # RKE2 auto-applies everything in this directory.
+  - path: /var/lib/rancher/rke2/server/manifests/hcloud.yaml
+    permissions: "0600"
+    content: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: hcloud
+        namespace: kube-system
+      stringData:
+        token: "${hcloud_token}"
+        network: "${network_id}"
+      ---
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        name: hcloud-cloud-controller-manager
+        namespace: kube-system
+      spec:
+        repo: https://charts.hetzner.cloud
+        chart: hcloud-cloud-controller-manager
+        version: "${ccm_version}"
+        targetNamespace: kube-system
+        # Must run before nodes are initialised (they carry the uninitialized taint).
+        bootstrap: true
+        valuesContent: |-
+          networking:
+            enabled: true
+          env:
+            # Pod traffic uses the canal overlay; no hcloud routes needed.
+            HCLOUD_NETWORK_ROUTES_ENABLED:
+              value: "false"
+            # Karpenter sets topology.kubernetes.io/zone to the location (nbg1).
+            HCLOUD_INSTANCES_ZONE_LABEL_ENABLED:
+              value: "false"
+            HCLOUD_LOAD_BALANCERS_LOCATION:
+              value: "${location}"
+            HCLOUD_LOAD_BALANCERS_USE_PRIVATE_IP:
+              value: "true"
+      ---
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        name: hcloud-csi
+        namespace: kube-system
+      spec:
+        repo: https://charts.hetzner.cloud
+        chart: hcloud-csi
+        version: "${csi_version}"
+        targetNamespace: kube-system
+
 runcmd:
   - /usr/local/bin/private-network.sh
   - curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION="${rke2_version}" INSTALL_RKE2_TYPE=server sh -

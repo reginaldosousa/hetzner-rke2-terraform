@@ -80,3 +80,15 @@ variable "rke2_version" {
   type        = string
   default     = "v1.36.5+rke2r1"
 }
+
+variable "ccm_chart_version" {
+  description = "hcloud-cloud-controller-manager Helm chart version."
+  type        = string
+  default     = "1.39.2"
+}
+
+variable "csi_chart_version" {
+  description = "hcloud-csi Helm chart version."
+  type        = string
+  default     = "2.24.1"
+}
