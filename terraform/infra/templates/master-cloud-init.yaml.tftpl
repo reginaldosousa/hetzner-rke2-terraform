@@ -10,6 +10,9 @@ write_files:
     permissions: "0600"
     content: |
       token: ${token}
+      # Separate, join-only secret for workers (their userData is readable via
+      # the metadata service, so they never get the server token).
+      agent-token: ${agent_token}
 %{ if !bootstrap ~}
       server: https://${lb_ip}:9345
 %{ endif ~}
@@ -27,15 +30,8 @@ write_files:
   - path: /var/lib/rancher/rke2/server/manifests/hcloud.yaml
     permissions: "0600"
     content: |
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: hcloud
-        namespace: kube-system
-      stringData:
-        token: "${hcloud_token}"
-        network: "${network_id}"
-      ---
+      # The "hcloud" Secret (token + network) is created by terraform/cluster,
+      # so the API token never lands in instance metadata. The CCM waits for it.
       apiVersion: helm.cattle.io/v1
       kind: HelmChart
       metadata:

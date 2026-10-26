@@ -49,7 +49,7 @@ output "master_ips" {
 }
 
 output "hcloud_token" {
-  description = "Passed through to the cluster root for the Karpenter secret."
+  description = "Passed through to the cluster root, which creates the kube-system/hcloud Secret."
   value       = var.hcloud_token
   sensitive   = true
 }
@@ -59,7 +59,7 @@ output "worker_user_data" {
   sensitive   = true
   value = templatefile("${path.module}/templates/worker-userdata.yaml.tftpl", {
     lb_ip                  = local.lb_ip
-    token                  = random_password.rke2_token.result
+    token                  = random_password.rke2_agent_token.result
     rke2_version           = var.rke2_version
     private_network_script = local.private_network_script
   })

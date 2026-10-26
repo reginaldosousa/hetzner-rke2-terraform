@@ -1,5 +1,11 @@
-# Shared secret every RKE2 server and agent uses to join the cluster.
+# Server token: only masters know it.
 resource "random_password" "rke2_token" {
+  length  = 48
+  special = false
+}
+
+# Agent token: lets a node join as a worker, nothing more.
+resource "random_password" "rke2_agent_token" {
   length  = 48
   special = false
 }
@@ -40,12 +46,11 @@ resource "hcloud_server" "master" {
   user_data = templatefile("${path.module}/templates/master-cloud-init.yaml.tftpl", {
     bootstrap              = count.index == 0
     token                  = random_password.rke2_token.result
+    agent_token            = random_password.rke2_agent_token.result
     node_ip                = local.master_ips[count.index]
     lb_ip                  = local.lb_ip
     rke2_version           = var.rke2_version
     private_network_script = local.private_network_script
-    hcloud_token           = var.hcloud_token
-    network_id             = hcloud_network.main.id
     location               = var.location
     ccm_version            = var.ccm_chart_version
     csi_version            = var.csi_chart_version
