@@ -17,4 +17,4 @@ wg/
 .remember/
 .DS_Store
 
-# Provider lock files are committed; nothing else from .terraform
+tfplan
