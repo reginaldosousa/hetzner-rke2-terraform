@@ -1,0 +1,27 @@
+#cloud-config
+# RKE2 agent bootstrap for Karpenter-provisioned workers (stored in the
+# worker-bootstrap Secret and referenced by the HCloudNodeClass).
+write_files:
+  - path: /usr/local/bin/private-network.sh
+    permissions: "0755"
+    content: |
+      ${indent(6, private_network_script)}
+
+  - path: /etc/rancher/rke2/config.yaml
+    permissions: "0600"
+    content: |
+      server: https://${lb_ip}:9345
+      token: ${token}
+      cloud-provider-name: external
+      # Karpenter removes this once it has synced the NodeClaim onto the Node.
+      node-taint:
+        - "karpenter.sh/unregistered=:NoExecute"
+      # Matches the provider's default kubeReserved, so Karpenter's view of
+      # allocatable agrees with the kubelet's.
+      kubelet-arg:
+        - "kube-reserved=cpu=100m,memory=100Mi"
+
+runcmd:
+  - /usr/local/bin/private-network.sh
+  - curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION="${rke2_version}" INSTALL_RKE2_TYPE=agent sh -
+  - systemctl enable --now rke2-agent.service

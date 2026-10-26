@@ -20,3 +20,47 @@ output "vpn_client_configs" {
     EOT
   }
 }
+
+output "cluster_name" {
+  value = var.cluster_name
+}
+
+output "location" {
+  value = var.location
+}
+
+output "network_id" {
+  description = "Private network ID (HCloudNodeClass.spec.networkID)."
+  value       = hcloud_network.main.id
+}
+
+output "ssh_key_id" {
+  description = "SSH key installed on Karpenter workers."
+  value       = hcloud_ssh_key.default.id
+}
+
+output "control_plane_ip" {
+  description = "Private LB address for the kube-apiserver (:6443) and RKE2 join (:9345)."
+  value       = local.lb_ip
+}
+
+output "master_ips" {
+  value = local.master_ips
+}
+
+output "hcloud_token" {
+  description = "Passed through to the cluster root for the Karpenter secret."
+  value       = var.hcloud_token
+  sensitive   = true
+}
+
+output "worker_user_data" {
+  description = "cloud-init that joins a Karpenter worker as an RKE2 agent."
+  sensitive   = true
+  value = templatefile("${path.module}/templates/worker-userdata.yaml.tftpl", {
+    lb_ip                  = local.lb_ip
+    token                  = random_password.rke2_token.result
+    rke2_version           = var.rke2_version
+    private_network_script = local.private_network_script
+  })
+}
