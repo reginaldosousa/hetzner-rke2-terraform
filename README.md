@@ -100,7 +100,7 @@ From outside the VPN only `udp/51820` on the gateway should answer.
 ## Public ingress
 
 RKE2's bundled Traefik is exposed through a public Hetzner Load Balancer
-(lb11, ~€7.89/mo) that the hcloud CCM creates from the Traefik Service
+(lb11, US$7.89/mo; see [docs/costs.md](docs/costs.md)) that the hcloud CCM creates from the Traefik Service
 (`terraform/cluster/ingress.tf`). The LB reaches Traefik over the private
 network and uses PROXY protocol with `externalTrafficPolicy: Local`, so apps
 see real client IPs.

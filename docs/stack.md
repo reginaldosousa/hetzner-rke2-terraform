@@ -8,8 +8,8 @@ alternativas descartadas.
 ### Hetzner Cloud
 - **Papel:** servidores, rede privada, IP primário, firewall, placement group, load balancer e volumes.
 - **Por quê:** custo muito baixo por vCPU/GB, API completa, provider Terraform oficial e, o que é decisivo,
-  um CCM, um CSI e um provider Karpenter disponíveis. Dá para ter um cluster HA real gastando poucas dezenas
-  de euros por mês.
+  um CCM, um CSI e um provider Karpenter disponíveis. Um cluster HA completo custa US$ 36,45/mês fixos
+  ([custos](costs.md)).
 - **ADR:** [0001](adr/0001-hetzner-cloud.md)
 
 ### Servidores arm64 (`cax11`)

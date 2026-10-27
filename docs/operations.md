@@ -102,6 +102,7 @@ Confira no console da Hetzner se sobrou algum servidor `role=worker` ou volume C
 | Nós `NotReady`/`uninitialized` logo após o bootstrap | Secret `kube-system/hcloud` ainda não existe: aplique `terraform/cluster` |
 | Worker criado mas não entra | sem egress (gateway/NAT), ou `rke2_version` diferente dos masters; veja `/var/log/cloud-init-output.log` via SSH na VPN |
 | NodeClaim travada | `kubectl get hcloudnodeclass default` precisa estar `READY=True`; capacidade esgotada na localização |
+| NodeClaim não cria servidor e o log mostra tipo indisponível | `cax` esgotado nas localizações; ver [costs.md](costs.md#disponibilidade-e-risco-de-custo-2026-10-27) |
 | Apply do `infra` falha no `gateway_sync` | VPN caída ou host key divergente; suba a VPN e rode de novo |
 | App não vê o IP real | Traefik fora de nós com `externalTrafficPolicy: Local`, ou origem fora de `network_cidr` |
 | Certificado não emite | `kubectl describe certificate,challenge -A`; confira o escopo do token Cloudflare e `external_dns_domains` |

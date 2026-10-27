@@ -24,7 +24,7 @@ IP primário, firewall, placement group, load balancer e volumes.
 
 ## Consequências
 
-- Custo muito baixo: três masters, gateway e LB de ingress ficam na casa de poucas dezenas de euros por mês.
+- Custo muito baixo: três masters, gateway e LB de ingress custam US$ 36,45/mês fixos, ou US$ 43,44 com um worker ([custos](../costs.md)).
 - Existe ecossistema para Kubernetes: hcloud CCM, hcloud CSI e um provider Karpenter comunitário.
 - Limitações que moldam outras decisões: não há NAT gateway gerenciado ([0003](0003-private-network-wireguard-gateway.md)),
   não há firewall para servidores só privados, não há spot e a disponibilidade de tipos varia por localização

@@ -6,7 +6,7 @@
 ## Contexto
 
 O RKE2 precisa de um endpoint estável para `:6443` (API) e `:9345` (join). A primeira versão usava um Hetzner
-LB `lb11` só na rede privada (~€7,89/mês). Porém:
+LB `lb11` só na rede privada (US$ 7,89/mês). Porém:
 
 - O endpoint só é usado por `kubectl` (pela VPN) e por nós **entrando** no cluster. Agentes RKE2 já registrados
   balanceiam sozinhos entre os masters.
@@ -29,7 +29,7 @@ gateway, que também entra no `tls-san` dos masters. Timeouts de 1h mantêm `kub
 
 ## Consequências
 
-- ~€7,89/mês a menos e um recurso a menos para gerenciar.
+- US$ 7,89/mês a menos ([custos](../costs.md)) e um recurso a menos para gerenciar.
 - Nenhum ponto único de falha novo, porque o gateway já era necessário para joins.
 - O `haproxy.cfg` é um arquivo mutável do gateway: mudanças nos masters chegam via
   [sync in-place](0009-gateway-config-sync.md).

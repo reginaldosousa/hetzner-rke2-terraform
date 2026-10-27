@@ -11,6 +11,7 @@ encaixam e **por que** cada uma foi escolhida.
 | [architecture.md](architecture.md) | Topologia, endereçamento, fluxos de tráfego e ordem de bootstrap |
 | [stack.md](stack.md) | Cada componente da stack, o papel dele e o motivo da escolha |
 | [operations.md](operations.md) | Runbooks: VPN, upgrades, proteção, state, destruição |
+| [costs.md](costs.md) | Custo por recurso, cenários, serviços externos e risco de disponibilidade |
 | [security.md](security.md) | Modelo de ameaças, segredos e superfícies de ataque |
 | [adr/](adr/README.md) | Architecture Decision Records: as decisões, alternativas e consequências |
 

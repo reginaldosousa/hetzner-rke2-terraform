@@ -32,7 +32,7 @@ Um `HelmChartConfig` (`terraform/cluster/ingress.tf`) reconfigura o `rke2-traefi
 
 ## Consequências
 
-- Custo de um `lb11` (~€7,89/mês).
+- Custo de um `lb11` (US$ 7,89/mês, IPs inclusos; ver [custos](../costs.md)).
 - **O LB não está no Terraform:** antes de destruir o cluster, remova o Service `rke2-traefik` (ou o LB no
   console), senão ele continua cobrando.
 - As aplicações recebem o IP real (`X-Real-Ip`/`X-Forwarded-For`).
