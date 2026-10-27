@@ -178,3 +178,9 @@ variable "protect" {
   type        = bool
   default     = true
 }
+
+variable "gateway_sync" {
+  description = "Push gateway config changes during apply (fail-closed: apply fails if the push fails). Needs the VPN up; set false only for the very first bootstrap apply, before a VPN config exists."
+  type        = bool
+  default     = true
+}

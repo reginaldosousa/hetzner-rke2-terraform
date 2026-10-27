@@ -46,13 +46,14 @@ a Hetzner Cloud project and a **read/write** API token.
 # 1. Infrastructure
 cd terraform/infra
 cp terraform.tfvars.example terraform.tfvars   # set hcloud_token + ssh_public_key
-terraform init && terraform apply
+terraform init && terraform apply -var gateway_sync=false   # first apply only: no VPN yet
 
 # 2. VPN
 mkdir -p ../../wg
 terraform output -json vpn_client_configs | jq -r .laptop > ../../wg/laptop.conf
 sudo wg-quick up ../../wg/laptop.conf          # or import into the WireGuard app
 ping 10.0.1.11
+( cd terraform/infra && terraform apply )   # enables the fail-closed gateway sync
 
 # 3. Kubeconfig (waits for RKE2 to come up)
 ../../scripts/get-kubeconfig.sh
@@ -120,16 +121,18 @@ Point DNS at that IP. Traefik serves a self-signed cert until you add TLS
   as Karpenter drifts/consolidates them.
 - **Upgrading the Karpenter chart**: Helm does not update CRDs — apply them first
   (see the provider README).
-- **Adding VPN users**: add `name = <host number>` to `vpn_clients` (e.g. `ci = 11`
-  → 10.200.0.11), `terraform apply`, then `scripts/sync-gateway.sh`. Numbers are
-  fixed, so removing a client never renumbers the others. The gateway is **not
-  rebuilt**: the script validates the new config on the gateway and activates it
-  with `wg syncconf`, so existing tunnels stay up. Hand out the new client's config
-  with `terraform output -json vpn_client_configs | jq -r .ci`.
-- **Gateway config** (WireGuard peers, NAT rules, HAProxy backends) is only written
-  by cloud-init on first boot; later changes go through `scripts/sync-gateway.sh`
-  (`--dry-run` shows the diff). A deliberate rebuild
-  (`terraform apply -replace=hcloud_server.gateway`) picks up the latest config.
+- **Adding / removing VPN users**: edit `vpn_clients` (`name = <host number>`, e.g.
+  `ci = 11` → 10.200.0.11) and `terraform apply`. Numbers are fixed, so removing a
+  client never renumbers the others. Apply pushes the new peer list to the running
+  gateway (`terraform_data.gateway_sync` → `scripts/sync-gateway.sh`). It validates
+  on the gateway and then activates with `wg syncconf`, so tunnels stay up and the
+  gateway is **not rebuilt**. This is **fail-closed**: if the push fails (VPN down,
+  invalid config), the apply fails and the next apply retries, so a removed client
+  can't silently keep access. Hand out a new client's config with
+  `terraform output -json vpn_client_configs | jq -r .ci`.
+- **Gateway config drift**: `scripts/sync-gateway.sh --dry-run` diffs the live
+  gateway against Terraform (private keys redacted). A deliberate rebuild
+  (`terraform apply -replace=hcloud_server.gateway`) also re-syncs.
 - **Architecture**: everything runs on arm64 (`cax`), the cheapest orderable type.
   Workload images must be multi-arch (`docker buildx --platform linux/amd64,linux/arm64`).
   To use x86 workers instead, set `architectures`/`serverFamilies` in
