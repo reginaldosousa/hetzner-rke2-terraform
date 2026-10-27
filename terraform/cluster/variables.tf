@@ -141,3 +141,9 @@ variable "pocket_id_version" {
   type        = string
   default     = "v2.19.1"
 }
+
+variable "oidc_admin_group" {
+  description = "Pocket ID group whose members get cluster-admin through kubectl OIDC login."
+  type        = string
+  default     = "k8s-admins"
+}

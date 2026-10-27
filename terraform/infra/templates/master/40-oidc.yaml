@@ -1,0 +1,7 @@
+# kubectl login through Pocket ID (docs/adr/0023). The apiserver reloads
+# authentication-config.yaml when it changes. The directory is mounted, not
+# the file: a replaced file gets a new inode, which a file mount never sees.
+kube-apiserver-arg+:
+  - authentication-config=/etc/rancher/rke2/oidc/authentication-config.yaml
+kube-apiserver-extra-mount+:
+  - /etc/rancher/rke2/oidc:/etc/rancher/rke2/oidc:ro

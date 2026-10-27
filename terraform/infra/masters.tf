@@ -30,14 +30,21 @@ locals {
   # Shared with terraform/cluster, which creates the Secret (output etcd_s3_config_secret).
   etcd_s3_config_secret = "rke2-etcd-snapshot-s3"
 
-  master_files = {
+  master_files = merge({
     "/etc/rancher/rke2/pod-security.yaml"                  = file("${path.module}/templates/master/pod-security.yaml")
     "/etc/rancher/rke2/config.yaml.d/10-pod-security.yaml" = file("${path.module}/templates/master/10-pod-security.yaml")
     "/etc/rancher/rke2/config.yaml.d/20-etcd-snapshots.yaml" = templatefile("${path.module}/templates/master/20-etcd-snapshots.yaml.tftpl", {
       secret_name = local.etcd_s3_config_secret
     })
     "/etc/rancher/rke2/config.yaml.d/30-metrics.yaml" = file("${path.module}/templates/master/30-metrics.yaml")
-  }
+    }, var.oidc_client_id == "" ? {} : {
+    # OIDC needs Pocket ID up first to create the client (docs/adr/0023).
+    "/etc/rancher/rke2/oidc/authentication-config.yaml" = templatefile("${path.module}/templates/master/authentication-config.yaml.tftpl", {
+      issuer_url = var.oidc_issuer_url
+      client_id  = var.oidc_client_id
+    })
+    "/etc/rancher/rke2/config.yaml.d/40-oidc.yaml" = file("${path.module}/templates/master/40-oidc.yaml")
+  })
 }
 
 resource "hcloud_placement_group" "masters" {

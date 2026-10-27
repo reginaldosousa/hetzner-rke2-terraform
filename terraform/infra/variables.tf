@@ -205,3 +205,14 @@ variable "oidc_issuer_url" {
     error_message = "oidc_issuer_url must be https://<host>, with no path or trailing slash (it must match the token's iss exactly)."
   }
 }
+
+variable "oidc_client_id" {
+  description = "Client ID of the kubectl client created in Pocket ID. Empty keeps OIDC off on the kube-apiserver (Pocket ID must exist first)."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._-]*$", var.oidc_client_id))
+    error_message = "oidc_client_id is the client ID Pocket ID shows (a UUID)."
+  }
+}

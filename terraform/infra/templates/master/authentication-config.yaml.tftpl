@@ -1,0 +1,16 @@
+apiVersion: apiserver.config.k8s.io/v1
+kind: AuthenticationConfiguration
+jwt:
+  - issuer:
+      url: ${issuer_url}
+      audiences:
+        - ${client_id}
+    claimMappings:
+      # sub, not email or username: Pocket ID users can edit those. RBAC binds
+      # groups only (terraform/cluster/oidc-rbac.tf).
+      username:
+        claim: sub
+        prefix: "oidc:"
+      groups:
+        claim: groups
+        prefix: "oidc:"
