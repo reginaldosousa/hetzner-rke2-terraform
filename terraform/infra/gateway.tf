@@ -6,9 +6,9 @@ resource "hcloud_ssh_key" "default" {
 locals {
   vpn_gateway_ip = cidrhost(var.vpn_cidr, 1)
   vpn_peers = [
-    for i, name in var.vpn_clients : {
+    for name, host in var.vpn_clients : {
       name       = name
-      ip         = cidrhost(var.vpn_cidr, 10 + i)
+      ip         = cidrhost(var.vpn_cidr, host)
       public_key = wireguard_asymmetric_key.client[name].public_key
     }
   ]
@@ -18,7 +18,7 @@ locals {
 resource "wireguard_asymmetric_key" "gateway" {}
 
 resource "wireguard_asymmetric_key" "client" {
-  for_each = toset(var.vpn_clients)
+  for_each = var.vpn_clients
 }
 
 # The only inbound traffic allowed from the internet is WireGuard.

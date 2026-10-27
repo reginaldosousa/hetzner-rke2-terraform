@@ -4,4 +4,4 @@ ssh_public_key = "ssh-ed25519 AAAA... you@laptop"
 
 # cluster_name = "rke2"
 # location     = "nbg1"
-# vpn_clients  = ["laptop", "ci"]
+# vpn_clients  = { laptop = 10, ci = 11 }   # name => fixed host number in vpn_cidr

@@ -103,9 +103,23 @@ variable "vpn_port" {
 }
 
 variable "vpn_clients" {
-  description = "Names of VPN clients. A key pair and a ready-to-use config is generated for each."
-  type        = list(string)
-  default     = ["laptop"]
+  description = "VPN clients: name => host number in vpn_cidr (10 => .10). A key pair and a ready-to-use config is generated for each. Host numbers are explicit so removing a client never renumbers the others."
+  type        = map(number)
+  default     = { laptop = 10 }
+
+  validation {
+    condition     = length(distinct(values(var.vpn_clients))) == length(var.vpn_clients)
+    error_message = "Each VPN client needs a unique host number."
+  }
+
+  validation {
+    # .0 network, .1 gateway, last = broadcast.
+    condition = alltrue([
+      for n in values(var.vpn_clients) :
+      floor(n) == n && n >= 2 && n < pow(2, 32 - tonumber(split("/", var.vpn_cidr)[1])) - 1
+    ])
+    error_message = "VPN client host numbers must be integers from 2 to the last usable host of vpn_cidr (.1 is the gateway)."
+  }
 }
 
 variable "ssh_public_key" {

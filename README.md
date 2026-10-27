@@ -115,7 +115,9 @@ Point DNS at that IP. Traefik serves a self-signed cert until you add TLS
   as Karpenter drifts/consolidates them.
 - **Upgrading the Karpenter chart**: Helm does not update CRDs — apply them first
   (see the provider README).
-- **Adding VPN users**: add a name to `vpn_clients` and re-apply. Note this changes
+- **Adding VPN users**: add `name = <host number>` to `vpn_clients` (e.g. `ci = 11`
+  → 10.200.0.11) and re-apply. Numbers are fixed, so removing a client never
+  renumbers the others. Note this changes
   the gateway's user_data and therefore **recreates the gateway** (brief VPN + egress
   outage; the public IP is reserved and stays the same).
 - **Architecture**: everything runs on arm64 (`cax`), the cheapest orderable type.
