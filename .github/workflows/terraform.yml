@@ -38,7 +38,7 @@ jobs:
 
       - name: terraform validate
         run: |
-          for root in terraform/infra terraform/cluster; do
+          for root in terraform/infra terraform/cluster terraform/identity; do
             echo "::group::$root"
             # -lockfile=readonly: fail if the committed lock file is incomplete.
             terraform -chdir="$root" init -backend=false -input=false -lockfile=readonly

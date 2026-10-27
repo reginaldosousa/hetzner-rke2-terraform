@@ -19,7 +19,7 @@ s3() {
     --endpoint-url https://9cf4130ce6c67ffa7f69903b7e2e4b15.r2.cloudflarestorage.com s3 "$@"
 }
 
-for root in infra cluster; do
+for root in infra cluster identity; do
   dir="$repo_root/state-backups/$root"
   mkdir -p "$dir"
   out="$dir/$ts.tfstate"
