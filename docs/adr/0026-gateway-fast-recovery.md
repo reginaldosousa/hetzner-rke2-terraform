@@ -39,7 +39,7 @@ Aceitamos alguns minutos de indisponibilidade do gateway e tornamos o rebuild co
 
 ## Consequências
 
-- RTO de um rebuild (cerca de 5 a 10 minutos), RPO de segundos para a tailnet. Durante o rebuild os nós ficam
+- RTO de um rebuild: cerca de 3 minutos no teste de 2026-10-27, com a tailnet voltando sozinha;, RPO de segundos para a tailnet. Durante o rebuild os nós ficam
   sem egress e não entra nó novo; os nós já no cluster seguem funcionando.
 - O certificado TLS do Headscale é reemitido pelo ACME a cada rebuild (o cache não é copiado).
 - O gateway antigo continua no banco restaurado como nó offline; apague-o depois do rebuild.

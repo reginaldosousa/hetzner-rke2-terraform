@@ -174,7 +174,7 @@ terraform -chdir=terraform/infra apply -replace=hcloud_server.gateway
 O IP público é mantido (IP primário). O cloud-init reinstala os arquivos, a host key fixada e as chaves do
 Headscale, e o instalador restaura o banco do Headscale do R2 antes de subi-lo ([ADR 0026](adr/0026-gateway-fast-recovery.md)).
 O sync roda porque o ID do servidor mudou: o WireGuard estático volta sozinho (mesma chave e mesmo IP), então
-deixe-o ligado durante o apply. Enquanto o gateway sobe (5 a 10 minutos), os nós ficam sem egress e kubectl e
+deixe-o ligado durante o apply. A tailnet também volta sozinha, sem `tailscale up`, assim que o Headscale restaurado sobe. Enquanto o gateway sobe (cerca de 3 minutos no teste de 2026-10-27), os nós ficam sem egress e kubectl e
 joins ficam indisponíveis, mas os nós já no cluster continuam falando com os masters. O dead man's switch avisa
 quando o gateway cai, porque o Watchdog do Alertmanager sai por ele.
 
@@ -183,6 +183,7 @@ Depois do rebuild, no gateway:
 grep -i "restored headscale" /var/log/cloud-init-output.log           # restore do R2 aconteceu
 headscale nodes list                                                 # o "gateway" antigo aparece offline
 headscale nodes delete --identifier <id do antigo>
+headscale nodes rename --identifier <id do novo> gateway   # o novo entra como gateway-1
 ```
 O certificado TLS é reemitido pelo ACME; o `tailnet-join.service` registra o gateway novo.
 
