@@ -47,7 +47,7 @@ for ip in $master_ips; do
   i=0
   for path in $paths; do
     want="$(shasum -a 256 < "$local_dir/$i" | cut -d' ' -f1)"
-    have="$(ssh_m "$ip" "sha256sum < '$path' 2>/dev/null | cut -d' ' -f1" || true)"
+    have="$(ssh_m "$ip" "sha256sum 2>/dev/null < '$path' | cut -d' ' -f1" || true)"
     if [ "$want" = "$have" ]; then
       echo "unchanged  $path"
     else
