@@ -56,7 +56,7 @@ variable "cloudflare_account_id" {
 }
 
 variable "cloudflare_provisioning_api_token" {
-  description = "Cloudflare token used only by Terraform: Account > Workers R2 Storage: Edit and Account > Account API Tokens: Edit, Zone > Zone: Read on external_dns_domains. Never stored in the cluster."
+  description = "Cloudflare token used only by Terraform: Account > Workers R2 Storage: Edit and Account > Account API Tokens: Edit, Zone > Zone: Read and Zone > DNS: Edit on external_dns_domains (DNS: Edit for records outside the cluster, like Headscale's). Never stored in the cluster."
   type        = string
   sensitive   = true
 }
