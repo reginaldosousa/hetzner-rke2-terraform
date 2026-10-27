@@ -1,7 +1,8 @@
 #!/usr/sbin/nft -f
 # Masquerade traffic leaving the private network for the internet.
-# VPN <-> network traffic is routed (not NATed); see hcloud_network_route.vpn_clients
-# and .tailnet. tailscaled runs with netfilter off: every rule lives here.
+# WireGuard <-> network traffic is routed (not NATed); see hcloud_network_route.vpn_clients.
+# Tailnet traffic is NATed (below): Hetzner rejects a route to 100.64.0.0/10.
+# tailscaled runs with netfilter off: every rule lives here.
 flush ruleset
 
 table inet filter {
@@ -46,5 +47,9 @@ table ip nat {
   chain postrouting {
     type nat hook postrouting priority 100;
     ip saddr ${network_cidr} ip daddr != { ${network_cidr}, ${vpn_cidrs} } masquerade
+%{ if headscale ~}
+    # Tailnet clients reach nodes as the gateway; replies return via conntrack.
+    ip saddr ${tailnet_cidr} ip daddr ${network_cidr} masquerade
+%{ endif ~}
   }
 }

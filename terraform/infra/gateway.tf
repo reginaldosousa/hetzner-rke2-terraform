@@ -72,6 +72,7 @@ locals {
       vpn_ifaces   = local.vpn_ifaces
       vpn_port     = var.vpn_port
       headscale    = local.headscale
+      tailnet_cidr = local.tailnet_cidr
     })
     "/etc/haproxy/haproxy.cfg" = templatefile("${path.module}/templates/gateway/haproxy.cfg.tftpl", {
       gateway_ip = local.gateway_ip

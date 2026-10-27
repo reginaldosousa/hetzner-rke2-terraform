@@ -14,7 +14,7 @@ curl -fsS -o /dev/null "$url/health"
 
 key="$(headscale preauthkeys create --tags tag:gateway --expiration 10m -o json | jq -r .key)"
 # netfilter off: nftables.conf owns every rule (its flush would wipe
-# tailscaled's). No SNAT: nodes route replies to the tailnet via the gateway.
+# tailscaled's), including the SNAT of tailnet traffic to the network.
 tailscale up --login-server "$url" --authkey "$key" --hostname gateway \
   --advertise-routes=${network_cidr} --snat-subnet-routes=false \
   --netfilter-mode=off --accept-dns=false --accept-routes=false
