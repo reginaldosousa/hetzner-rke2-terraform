@@ -32,7 +32,7 @@ flowchart TB
     gw -. "VPN clients: only :22 and :6443" .-> workers
     masters -. "egress: route 0.0.0.0/0 → gateway NAT" .-> gw
     workers -. "egress" .-> gw
-    gw -. "R2 (etcd snapshots, Velero), Telegram, healthchecks.io" .-> ext(("internet"))
+    gw -. "R2 (etcd snapshots, Velero, Headscale DB), Telegram, healthchecks.io" .-> ext(("internet"))
 ```
 
 | Piece | Where |
@@ -47,7 +47,7 @@ flowchart TB
 | Karpenter, NodeClass, NodePool, Traefik LB, external-dns, cert-manager | `terraform/cluster/` |
 | Worker floor, kured | `terraform/cluster/capacity.tf`, `kured.tf` |
 | Metadata block (Calico tier) | `terraform/cluster/metadata-guard.tf` |
-| R2 buckets + scoped Cloudflare tokens, etcd-s3 Secret | `terraform/cluster/etcd-snapshots.tf`, `dns-token.tf`, `velero.tf` |
+| R2 buckets + scoped Cloudflare tokens, etcd-s3 Secret | `terraform/cluster/etcd-snapshots.tf`, `dns-token.tf`, `velero.tf`, `headscale-backup.tf` |
 | Monitoring, Velero | `terraform/cluster/monitoring.tf`, `velero.tf` |
 
 Three Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
@@ -280,7 +280,7 @@ infrastructure: applies run locally over the VPN from a reviewed plan.
   (`169.254.169.254`); a Calico tier blocks pods from reaching it (except hcloud-csi).
 - Pod Security `baseline` is enforced everywhere but `kube-system`; `monitoring` and
   `velero` are explicit `privileged` exceptions.
-- The gateway is a single point of failure for VPN, egress and joining new nodes (HAProxy). Running nodes keep talking to the masters directly if it goes down, and the dead man's switch reports it.
+- The gateway is a single point of failure for VPN, egress and joining new nodes (HAProxy). Running nodes keep talking to the masters directly if it goes down, and the dead man's switch reports it. It is disposable rather than redundant: `apply -replace` rebuilds it in about 3 minutes with Headscale's keys and database intact (ADR 0026).
 
 ## Versions
 

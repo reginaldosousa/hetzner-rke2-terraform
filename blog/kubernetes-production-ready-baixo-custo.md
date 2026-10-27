@@ -66,6 +66,7 @@ O que mais reduziu o custo:
 | **HAProxy no gateway** | endpoint do control plane (`6443` e `9345`) com health check HTTPS dos três masters |
 | **Headscale + Tailscale** | VPN do dia a dia, com login OIDC; o gateway é o subnet router da rede privada |
 | **WireGuard** | VPN de emergência e caminho dos applies |
+| **Litestream** | réplica contínua do banco do Headscale no R2, para o gateway poder ser recriado sem perder a VPN |
 
 ### Dentro do cluster
 
@@ -111,6 +112,14 @@ Algumas regras que adotamos:
   falhar. Revogar um acesso à VPN nunca fica pendente em silêncio.
 - **Host key SSH fixada** pelo Terraform: o script nunca confia no primeiro host que responder, porque envia a
   chave privada do WireGuard.
+- **Descartável em vez de redundante:** as chaves do Headscale vêm do Terraform, e o banco dele (SQLite) é
+  replicado continuamente para o R2 pelo Litestream. Um `terraform apply -replace=hcloud_server.gateway` traz o
+  gateway de volta com o mesmo IP, as mesmas chaves e a tailnet restaurada. No teste levou cerca de 3 minutos, e os
+  clientes Tailscale reconectaram sozinhos, sem novo login.
+
+HA de verdade aqui seria um segundo gateway com keepalived e um Floating IP, movidos pela API da Hetzner, porque a
+rede privada não tem VRRP. Custaria cerca de US$ 10/mês e poria um token com escrita no projeto inteiro dentro do
+único host público. Para este cluster, alguns minutos de RTO compensam mais.
 
 ### 3. HAProxy no lugar do load balancer do control plane
 
@@ -184,12 +193,14 @@ Sem configuração, o RKE2 aceita pods privilegiados em qualquer namespace. Conf
 baseline` em todo o cluster, `restricted` em modo de aviso, e só o `kube-system` isento. Quem precisa de privilégio
 (node-exporter, o agente do Velero) ganha um rótulo explícito no namespace, uma exceção visível no código.
 
-### 10. Backups em duas camadas
+### 10. Backups fora da Hetzner
 
 - **Snapshots do etcd no R2**, a cada 6 h, com 7 dias de retenção. Restauram o control plane inteiro. Atenção: o
   restore exige o token de server da época do snapshot, que está no state do Terraform.
 - **Velero no R2**, diário, com cópia dos volumes por arquivo. Recupera um namespace ou um volume sem voltar o
   cluster todo. Bancos de dados ainda precisam de dump próprio.
+- **Litestream no R2**, contínuo, para o banco do Headscale no gateway: usuários e dispositivos da VPN voltam
+  num rebuild.
 
 Cada consumidor tem um token R2 próprio, com acesso a um bucket só, criado pelo Terraform. Os buckets têm
 `prevent_destroy`.
@@ -234,7 +245,8 @@ tailnet sai com SNAT no gateway.
 
 Um cluster assim não tem SLA de ninguém, e há riscos que vale aceitar de olhos abertos:
 
-- **O gateway é ponto único de falha** para acesso, egress e entrada de nós novos.
+- **O gateway é ponto único de falha** para acesso, egress e entrada de nós novos. A mitigação é recuperação
+  rápida (rebuild em minutos, sem perder a VPN), não redundância.
 - **A disponibilidade de `cax` oscila.** Num mesmo dia, de manhã nenhum `cax` estava à venda, e à tarde voltou.
   Enquanto está esgotado, o Karpenter não cria workers, e substituir um master exigiria x86, a mais de três vezes
   o preço.

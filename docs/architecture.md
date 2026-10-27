@@ -6,7 +6,7 @@
 flowchart TB
     internet((Internet))
     subgraph external["Serviços externos"]
-        r2[("Cloudflare R2<br/>state, snapshots do etcd, Velero")]
+        r2[("Cloudflare R2<br/>state, snapshots do etcd, Velero, Headscale")]
         tg["Telegram<br/>alertas"]
         hc["healthchecks.io<br/>dead man's switch"]
         cf["Cloudflare DNS"]
@@ -130,7 +130,7 @@ flowchart TB
         kb["Secret karpenter-worker-bootstrap (userData dos workers)"]
         kp["Karpenter (nos masters) → chart local nodepools"]
         tr["HelmChartConfig do Traefik → CCM cria o LB de ingress"]
-        cfr["buckets R2 + tokens de escopo mínimo → Secrets etcd-s3, Velero, DNS"]
+        cfr["buckets R2 + tokens de escopo mínimo → Secrets etcd-s3, Velero, DNS · credenciais do Litestream (output)"]
         dns["external-dns · cert-manager → chart local cluster-issuers"]
         sec["tier metadata-guard · kured · placeholders (2 workers)"]
         mon["kube-prometheus-stack (Telegram + dead man's switch)"]

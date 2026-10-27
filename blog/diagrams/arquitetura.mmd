@@ -26,5 +26,5 @@ flowchart TB
     wk -. "egress via NAT" .-> gw
     cp -. "egress via NAT" .-> gw
 
-    r2[("Cloudflare R2<br/>state · etcd · Velero")]
+    r2[("Cloudflare R2<br/>state · etcd · Velero · Headscale")]
     gw -. "internet" .-> r2

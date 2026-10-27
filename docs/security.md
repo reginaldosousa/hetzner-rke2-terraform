@@ -65,11 +65,12 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   fechados para eles. No sentido contrário nada passa: um pod comprometido não alcança o laptop de um operador.
 - **Instalador do RKE2 fixado**: os nós baixam o `install.sh` da tag de `rke2_version` e só o executam se o
   sha256 bater com `rke2_install_sha256`. O próprio script confere os checksums do tarball da release.
-- **Tokens Cloudflare de escopo mínimo, criados pelo Terraform**: um por bucket R2 (etcd, Velero) e um de DNS
+- **Tokens Cloudflare de escopo mínimo, criados pelo Terraform**: um por bucket R2 (etcd, Velero, Headscale) e um de DNS
   (Zone Read + DNS Write nas zonas gerenciadas). O token de provisionamento, que cria tokens, fica só com o
   operador. O token do etcd não lê o bucket do state (testado: `AccessDenied`).
 - **Backups fora do cluster**: snapshots do etcd e backups do Velero no R2, com alertas de falha
-  ([ADR 0019](adr/0019-etcd-snapshots-r2.md), [ADR 0022](adr/0022-velero-r2.md)).
+  ([ADR 0019](adr/0019-etcd-snapshots-r2.md), [ADR 0022](adr/0022-velero-r2.md)), e o banco do Headscale
+  replicado pelo Litestream ([ADR 0026](adr/0026-gateway-fast-recovery.md)).
 - **Patches com reboot**: unattended-upgrades instala, e o kured reinicia os nós um por vez
   ([ADR 0020](adr/0020-worker-floor-and-node-reboots.md)).
 - **Alertas com dead man's switch**: Telegram para alertas e um ping externo do Watchdog, para que um gateway ou
@@ -85,7 +86,8 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
 ## Riscos conhecidos
 
 - **Gateway é ponto único de falha** para VPN, egress e joins. Nós já no cluster seguem funcionando, porque
-  falam direto com os masters.
+  falam direto com os masters. A mitigação é um rebuild de cerca de 3 minutos sem perder a VPN, não HA
+  ([ADR 0026](adr/0026-gateway-fast-recovery.md)).
 - **Login na VPN depende do Pocket ID, que roda no cluster.** Sessões abertas continuam até expirar; para o
   resto, o WireGuard estático é o break-glass e precisa continuar existindo.
 - **Tokens no metadata service**: o user_data dos masters tem o token de server, e o dos workers tem o agent
