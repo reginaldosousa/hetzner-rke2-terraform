@@ -74,13 +74,13 @@ variable "kured_chart_version" {
 }
 
 variable "min_workers" {
-  description = "Workers kept alive even when idle (one Traefik replica each behind the ingress LB). At most one per location in worker_locations."
+  description = "Workers kept alive even when idle (one Traefik replica each behind the ingress LB). One per location, so at most length(worker_locations)."
   type        = number
   default     = 2
 
   validation {
-    condition     = var.min_workers >= 0
-    error_message = "min_workers can't be negative."
+    condition     = var.min_workers >= 0 && var.min_workers <= length(var.worker_locations)
+    error_message = "min_workers must be between 0 and the number of worker_locations (one placeholder per location)."
   }
 }
 

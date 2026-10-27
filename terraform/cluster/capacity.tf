@@ -1,7 +1,7 @@
 # Karpenter only launches workers for pending pods, so a quiet cluster shrinks
 # to one worker, and that one worker becomes the only Traefik target behind the
 # ingress LB. These placeholder pods keep var.min_workers workers alive, one
-# per node and spread across locations. Their priority is below every real
+# per location. Their priority is below every real
 # workload: the scheduler evicts them for real pods, and Karpenter then
 # launches a new node for the evicted placeholder.
 resource "kubernetes_priority_class_v1" "placeholder" {
@@ -31,6 +31,12 @@ resource "kubernetes_deployment_v1" "worker_placeholder" {
   spec {
     replicas = var.min_workers
 
+    # A rolling update would deadlock: the surge pod can't share a location
+    # with the old pods it is replacing.
+    strategy {
+      type = "Recreate"
+    }
+
     selector {
       match_labels = { app = "worker-placeholder" }
     }
@@ -45,25 +51,19 @@ resource "kubernetes_deployment_v1" "worker_placeholder" {
         termination_grace_period_seconds = 0
         automount_service_account_token  = false
 
-        # One per worker...
+        # One per location (and so one per worker). A required anti-affinity,
+        # not a topology spread: the scheduler only knows locations that
+        # already have a node, so a spread is satisfied by a second node in
+        # the same location. With this the pod can't fit any existing node
+        # and Karpenter launches one in another location.
         affinity {
           pod_anti_affinity {
             required_during_scheduling_ignored_during_execution {
-              topology_key = "kubernetes.io/hostname"
+              topology_key = "topology.kubernetes.io/zone"
               label_selector {
                 match_labels = { app = "worker-placeholder" }
               }
             }
-          }
-        }
-
-        # ...and the workers in different locations (var.worker_locations).
-        topology_spread_constraint {
-          max_skew           = 1
-          topology_key       = "topology.kubernetes.io/zone"
-          when_unsatisfiable = "DoNotSchedule"
-          label_selector {
-            match_labels = { app = "worker-placeholder" }
           }
         }
 
