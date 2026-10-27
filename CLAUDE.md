@@ -20,11 +20,11 @@ scripts/sync-gateway.sh --dry-run               # gateway drift vs. Terraform (n
 scripts/sync-masters.sh --dry-run               # masters' RKE2 config drift (needs VPN)
 ```
 
-Render a cloud-init template to check the output. Run this from `terraform/infra`, passing the template's vars, and use `printf`, not zsh `echo`, which mangles `\n`:
+Render a cloud-init template to check the output. Run this from `terraform/infra`, passing the template's vars, and use `printf`, not zsh `echo`, which mangles `\n`. The dummy variables must pass the variables' validation rules:
 
 ```bash
 printf '%s\n' 'templatefile("templates/worker-userdata.yaml.tftpl", {control_plane_ip="10.0.1.2", token="T", rke2_version="v", private_network_script="echo"})' \
-  | terraform console -var hcloud_token=x -var ssh_public_key=x
+  | terraform console -var hcloud_token="$(printf 'x%.0s' {1..64})" -var 'ssh_public_key=ssh-ed25519 AAAA'
 ```
 
 ## Architecture (cross-file facts)
