@@ -8,12 +8,12 @@ export DEBIAN_FRONTEND=noninteractive
 hs_version="${headscale_version}"
 ts_version="${tailscale_version}"
 arch="$(dpkg --print-architecture)"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
 
 installed() { dpkg-query -W -f='$${Version}' "$1" 2>/dev/null || true; }
 
 if [ "$(installed headscale)" != "$hs_version" ]; then
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
   curl -fsSL -o "$tmp/headscale.deb" \
     "https://github.com/juanfont/headscale/releases/download/v$hs_version/headscale_$${hs_version}_linux_$${arch}.deb"
   echo "${headscale_deb_sha256}  $tmp/headscale.deb" | sha256sum -c --quiet -
@@ -30,6 +30,35 @@ if [ "$(installed tailscale)" != "$ts_version" ]; then
   apt-get update -q
   apt-get install -y -q --allow-downgrades "tailscale=$ts_version" jq
 fi
+%{ if backup ~}
+
+# Litestream (docs/adr/0026). The package starts nothing; headscale-backup.service
+# runs it with our config.
+ls_version="${litestream_version}"
+if [ "$(installed litestream)" != "$ls_version" ]; then
+  curl -fsSL -o "$tmp/litestream.deb" \
+    "https://github.com/benbjohnson/litestream/releases/download/v$ls_version/litestream-$${ls_version}-linux-$${arch}.deb"
+  echo "${litestream_sha256}  $tmp/litestream.deb" | sha256sum -c --quiet -
+  dpkg -i "$tmp/litestream.deb"
+fi
+
+# Once per host, before Headscale or Litestream write anything: take the
+# database from R2 if a copy exists. A rebuilt gateway gets the tailnet back
+# (and drops any empty database the package made); the gateway that starts the
+# backup finds no copy and keeps its own.
+marker=/var/lib/headscale/.restore-done
+if [ ! -e "$marker" ]; then
+  systemctl stop headscale headscale-backup 2>/dev/null || true
+  litestream restore -config /etc/headscale/litestream.yml -if-replica-exists \
+    -o "$tmp/db.sqlite" /var/lib/headscale/db.sqlite
+  if [ -f "$tmp/db.sqlite" ]; then
+    rm -f /var/lib/headscale/db.sqlite-wal /var/lib/headscale/db.sqlite-shm
+    install -m 0600 "$tmp/db.sqlite" /var/lib/headscale/db.sqlite
+    echo "Restored Headscale's database from R2."
+  fi
+  touch "$marker"
+fi
+%{ endif ~}
 
 # Files land as root 0600; the headscale service user must read them.
 chown root:headscale /etc/headscale/config.yaml /etc/headscale/policy.hujson /etc/headscale/oidc_client_secret
@@ -42,5 +71,9 @@ systemctl daemon-reload
 systemctl enable headscale tailscaled
 systemctl restart headscale
 systemctl start tailscaled
+%{ if backup ~}
+systemctl enable headscale-backup
+systemctl restart headscale-backup
+%{ endif ~}
 systemctl enable tailnet-join.service
 systemctl restart tailnet-join.service --no-block

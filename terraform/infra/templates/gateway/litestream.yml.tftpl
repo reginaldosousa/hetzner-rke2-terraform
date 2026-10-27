@@ -1,0 +1,12 @@
+# Litestream: continuous copy of Headscale's database to R2 (docs/adr/0026).
+# A rebuilt gateway restores it in headscale-install.sh before Headscale starts.
+dbs:
+  - path: /var/lib/headscale/db.sqlite
+    replica:
+      type: s3
+      endpoint: ${endpoint}
+      bucket: ${bucket}
+      path: ${path}
+      region: auto
+      access-key-id: ${access_key_id}
+      secret-access-key: ${secret_access_key}

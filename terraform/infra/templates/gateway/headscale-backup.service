@@ -1,0 +1,12 @@
+[Unit]
+Description=Replicate Headscale's database to R2 with Litestream (docs/adr/0026)
+After=network-online.target headscale.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/litestream replicate -config /etc/headscale/litestream.yml
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

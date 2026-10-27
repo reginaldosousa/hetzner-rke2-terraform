@@ -22,6 +22,8 @@ locals {
   tailnet_cidr = "100.64.0.0/10" # Tailscale's CGNAT range; clients expect it
   vpn_ifaces   = local.headscale ? "\"wg0\", \"tailscale0\"" : "\"wg0\""
   vpn_cidrs    = local.headscale ? "${var.vpn_cidr}, ${local.tailnet_cidr}" : var.vpn_cidr
+  # Litestream to R2 (docs/adr/0026) once terraform/cluster made the bucket.
+  headscale_backup = local.headscale && nonsensitive(var.headscale_backup != null)
 
   headscale_files = !local.headscale ? {} : {
     "/etc/headscale/config.yaml" = templatefile("${path.module}/templates/gateway/headscale-config.yaml.tftpl", {
@@ -45,12 +47,26 @@ locals {
       headscale_version    = var.headscale_version
       headscale_deb_sha256 = var.headscale_deb_sha256
       tailscale_version    = var.tailscale_version
+      backup               = local.headscale_backup
+      litestream_version   = var.litestream_version
+      litestream_sha256    = var.litestream_deb_sha256
     })
     "/usr/local/sbin/tailnet-join.sh" = templatefile("${path.module}/templates/gateway/tailnet-join.sh.tftpl", {
       hostname     = var.headscale_hostname
       network_cidr = var.network_cidr
     })
     "/etc/systemd/system/tailnet-join.service" = file("${path.module}/templates/gateway/tailnet-join.service")
+  }
+
+  headscale_backup_files = !local.headscale_backup ? {} : {
+    "/etc/headscale/litestream.yml" = templatefile("${path.module}/templates/gateway/litestream.yml.tftpl", {
+      endpoint          = var.headscale_backup.endpoint
+      bucket            = var.headscale_backup.bucket
+      path              = "${var.cluster_name}/headscale"
+      access_key_id     = var.headscale_backup.access_key_id
+      secret_access_key = var.headscale_backup.secret_access_key
+    })
+    "/etc/systemd/system/headscale-backup.service" = file("${path.module}/templates/gateway/headscale-backup.service")
   }
 }
 
@@ -61,7 +77,7 @@ locals {
 # Everything on the gateway that can change after first boot. Rendered once:
 # cloud-init writes it on first boot, scripts/sync-gateway.sh pushes updates.
 locals {
-  gateway_files = merge(local.headscale_files, {
+  gateway_files = merge(local.headscale_files, local.headscale_backup_files, {
     "/etc/wireguard/wg0.conf" = templatefile("${path.module}/templates/gateway/wg0.conf.tftpl", {
       vpn_gateway_ip = local.vpn_gateway_ip
       vpn_prefix     = split("/", var.vpn_cidr)[1]

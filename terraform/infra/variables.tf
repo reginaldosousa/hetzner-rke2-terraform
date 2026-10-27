@@ -275,6 +275,40 @@ variable "headscale_deb_sha256" {
   }
 }
 
+variable "headscale_backup" {
+  description = "R2 target for Litestream's copy of Headscale's database (terraform/cluster output headscale_backup). Null: no backup, and a rebuilt gateway starts with an empty tailnet."
+  type = object({
+    endpoint          = string
+    bucket            = string
+    access_key_id     = string
+    secret_access_key = string
+  })
+  default   = null
+  sensitive = true
+
+  validation {
+    condition     = var.headscale_backup == null || startswith(try(var.headscale_backup.endpoint, ""), "https://")
+    error_message = "headscale_backup.endpoint is the R2 S3 endpoint, https://<account_id>.r2.cloudflarestorage.com."
+  }
+}
+
+variable "litestream_version" {
+  description = "Litestream release that replicates Headscale's database."
+  type        = string
+  default     = "0.5.17"
+}
+
+variable "litestream_deb_sha256" {
+  description = "sha256 of litestream-<version>-linux-arm64.deb (checksums.txt of the release); the gateway is arm64."
+  type        = string
+  default     = "7d34ed3356844fe3dd127462b9f4ea7e79ef14679eadf2fed6c737dcb797358e"
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{64}$", var.litestream_deb_sha256))
+    error_message = "litestream_deb_sha256 must be a 64-character hex sha256."
+  }
+}
+
 variable "tailscale_version" {
   description = "Tailscale client on the gateway (subnet router), from pkgs.tailscale.com."
   type        = string

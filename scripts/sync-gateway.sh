@@ -68,7 +68,7 @@ for path in $(jq -r 'keys[]' <<<"$files_json"); do
   echo "changed    $path"
   case "$path" in
     # Whole-file secrets: never print their content, not even a diff.
-    /etc/headscale/oidc_client_secret|/var/lib/headscale/*.key)
+    /etc/headscale/oidc_client_secret|/etc/headscale/litestream.yml|/var/lib/headscale/*.key)
       echo "    (secret, content not shown)" ;;
     *)
       diff <(ssh_gw "cat '$path'" 2>/dev/null) "$file" \
