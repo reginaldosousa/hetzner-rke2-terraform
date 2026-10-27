@@ -35,6 +35,9 @@ corrigidos só valem depois de um reboot. Os workers são trocados a cada 30 dia
 ## Consequências
 
 - Custo fixo de um segundo `cax11`.
+- O spread por localização é só um pedido: na prática o Karpenter criou o segundo worker em `fsn1`, como o
+  primeiro, porque só considera as localizações onde já existem nós. Os dois ficam em hosts físicos diferentes
+  (placement group `spread`), mas não em datacenters diferentes.
 - Se uma localização ficar sem capacidade, um placeholder fica `Pending` (spread `DoNotSchedule`). Isso não afeta
   workloads reais e aparece em `kubectl -n capacity get pods`.
 - Durante o reboot de um master o etcd fica com 2 de 3 membros. O kured nunca reinicia dois nós ao mesmo tempo.
