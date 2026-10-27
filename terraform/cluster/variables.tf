@@ -94,6 +94,11 @@ variable "telegram_bot_token" {
   description = "Telegram bot token (from @BotFather) that Alertmanager sends alerts with."
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = can(regex("^[0-9]+:[A-Za-z0-9_-]{30,}$", var.telegram_bot_token))
+    error_message = "telegram_bot_token is the whole token from @BotFather, <bot id>:<secret>, including the part before the colon."
+  }
 }
 
 variable "telegram_chat_id" {
