@@ -60,7 +60,8 @@ ocultadas.
 | RKE2 | Altere `rke2_version`. Os masters ignoram mudanças de `user_data`, então atualize-os in-place (por exemplo, com system-upgrade-controller). Workers novos já sobem na versão nova, e os antigos são trocados por drift/consolidação. |
 | CCM / CSI | Altere `ccm_chart_version`/`csi_chart_version`. Só masters novos recebem o manifest novo. Nos existentes, atualize a versão em `/var/lib/rancher/rke2/server/manifests/hcloud.yaml` em cada master (via SSH na VPN). O RKE2 reaplica o arquivo, e uma edição feita só no objeto `HelmChart` seria sobrescrita por ele. |
 | Karpenter | Aplique os CRDs novos **antes** (o Helm não atualiza CRDs) e depois altere `karpenter_chart_version`. |
-| external-dns / cert-manager | Altere a variável e rode `terraform apply` no root `cluster`. |
+| external-dns / cert-manager / kured | Altere a variável e rode `terraform apply` no root `cluster`. |
+| SO dos nós | Automático: unattended-upgrades instala, o kured reinicia um nó por vez entre 01:00 e 05:00, e os workers são trocados a cada 30 dias. Pausar: `kubectl -n kube-system annotate ds kured weave.works/kured-node-lock='{"nodeID":"manual"}'`; retomar removendo a anotação. |
 
 ## Proteção contra deleção
 
@@ -74,6 +75,20 @@ terraform apply                             # protect volta a true
 ```
 
 Gateway e workers são descartáveis e não têm proteção.
+
+## Substituir um master
+
+O Karpenter não escolhe IP: um worker recebe o primeiro IP livre da sub-rede, que pode ser o de um master
+enquanto ele está sendo recriado (`.11` a `.13`). Durante a troca, pare o Karpenter para que nenhum worker nasça
+nesse intervalo:
+
+```bash
+kubectl -n kube-system scale deploy karpenter-karpenter-provider-hetzner --replicas=0
+# terraform apply -replace='hcloud_server.master[N]'  (protect = false antes, ver acima)
+kubectl -n kube-system scale deploy karpenter-karpenter-provider-hetzner --replicas=1
+```
+
+Se o IP já estiver ocupado, o apply falha (não sobe com outro IP); drene e apague o worker que o pegou.
 
 ## Rebuild do gateway
 
@@ -121,6 +136,8 @@ masters já o têm no `config.yaml`.
 ## Escala
 
 - Teto de vCPU dos workers: `nodepool_cpu_limit` (padrão 32).
+- Mínimo de workers: `min_workers` (padrão 2, um por localização), mantido por pods placeholder
+  ([ADR 0020](adr/0020-worker-floor-and-node-reboots.md)).
 - Localizações dos workers: `worker_locations` (precisam estar na network zone da rede, `eu-central`).
 - Masters `cax11` comportam bem até umas dezenas de workers. Acima de ~50, aumente `master_server_type`.
 

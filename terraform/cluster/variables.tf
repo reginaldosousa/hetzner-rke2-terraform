@@ -66,3 +66,20 @@ variable "etcd_s3_bucket" {
   type        = string
   default     = "rke2-etcd-snapshots"
 }
+
+variable "kured_chart_version" {
+  description = "kubereboot kured chart version."
+  type        = string
+  default     = "6.1.0"
+}
+
+variable "min_workers" {
+  description = "Workers kept alive even when idle (one Traefik replica each behind the ingress LB). At most one per location in worker_locations."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.min_workers >= 0
+    error_message = "min_workers can't be negative."
+  }
+}

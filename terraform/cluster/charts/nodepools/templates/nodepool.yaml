@@ -5,6 +5,8 @@ metadata:
 spec:
   template:
     spec:
+      # Replace workers monthly so they come back on a fresh, patched image.
+      expireAfter: 720h
       nodeClassRef:
         group: karpenter.hetzner.cloud
         kind: HCloudNodeClass
@@ -24,4 +26,7 @@ spec:
     cpu: {{ .Values.cpuLimit | quote }}
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
-    consolidateAfter: 1m
+    consolidateAfter: 5m
+    # One worker at a time, so the ingress never loses every Traefik replica.
+    budgets:
+      - nodes: "1"

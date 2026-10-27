@@ -2,4 +2,4 @@ apiVersion: v2
 name: nodepools
 description: Karpenter HCloudNodeClass + NodePool for this cluster.
 type: application
-version: 0.1.0
+version: 0.2.0
