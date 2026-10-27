@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Register the gateway in its own tailnet as the subnet router for the private
+# network. Run by tailnet-join.service, which retries until Headscale has its
+# certificate (ACME needs ${hostname} to resolve to the gateway).
+set -euo pipefail
+
+url="https://${hostname}"
+
+if [ "$(tailscale status --json 2>/dev/null | jq -r .BackendState)" = "Running" ]; then
+  exit 0
+fi
+
+curl -fsS -o /dev/null "$url/health"
+
+key="$(headscale preauthkeys create --tags tag:gateway --expiration 10m -o json | jq -r .key)"
+# netfilter off: nftables.conf owns every rule (its flush would wipe
+# tailscaled's). No SNAT: nodes route replies to the tailnet via the gateway.
+tailscale up --login-server "$url" --authkey "$key" --hostname gateway \
+  --advertise-routes=${network_cidr} --snat-subnet-routes=false \
+  --netfilter-mode=off --accept-dns=false --accept-routes=false

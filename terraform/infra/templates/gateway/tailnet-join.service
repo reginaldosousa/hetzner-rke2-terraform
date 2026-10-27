@@ -1,0 +1,13 @@
+[Unit]
+Description=Register the gateway as the tailnet's subnet router
+After=headscale.service tailscaled.service
+Wants=headscale.service tailscaled.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /usr/local/sbin/tailnet-join.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Push the gateway's config (WireGuard peers, nftables NAT, HAProxy) in place,
+# Push the gateway's config (WireGuard peers, nftables NAT, HAProxy, Headscale) in place,
 # instead of rebuilding the server. `terraform apply` runs this automatically
 # (terraform_data.gateway_sync); run it by hand to check for drift.
 # Requires the WireGuard tunnel to be up.
@@ -91,6 +91,10 @@ CHANGED=("$@")
 has /etc/nftables.conf       && nft -c -f $stage/nftables.conf
 has /etc/haproxy/haproxy.cfg && haproxy -q -c -f $stage/haproxy.cfg
 has /etc/wireguard/wg0.conf  && wg-quick strip $stage/wg0.conf >/dev/null
+# Checked by the running Headscale (gRPC), against its live users and nodes.
+if has /etc/headscale/policy.hujson && systemctl -q is-active headscale; then
+  headscale policy check -f $stage/policy.hujson
+fi
 
 if has /etc/nftables.conf; then
   install -m 600 $stage/nftables.conf /etc/nftables.conf && nft -f /etc/nftables.conf
@@ -99,6 +103,27 @@ fi
 if has /etc/haproxy/haproxy.cfg; then
   install -m 600 $stage/haproxy.cfg /etc/haproxy/haproxy.cfg && systemctl reload haproxy
   echo "activated  /etc/haproxy/haproxy.cfg (graceful reload)"
+fi
+# Headscale (docs/adr/0025). The installer pins the packages, fixes the file
+# owners and restarts it; a policy-only change is a SIGHUP reload.
+hs_restart=false
+for path in "${CHANGED[@]}"; do
+  case "$path" in
+    /etc/headscale/*|/usr/local/sbin/*|/etc/systemd/system/*)
+      install -D -m 600 "$stage/$(basename "$path")" "$path"
+      [ "$path" = /etc/headscale/policy.hujson ] || hs_restart=true
+      ;;
+  esac
+done
+if $hs_restart; then
+  bash /usr/local/sbin/headscale-install.sh
+  for _ in $(seq 30); do headscale users list >/dev/null 2>&1 && break; sleep 2; done
+  headscale users list >/dev/null
+  echo "activated  Headscale (installed, restarted)"
+elif has /etc/headscale/policy.hujson; then
+  chown root:headscale /etc/headscale/policy.hujson && chmod 0640 /etc/headscale/policy.hujson
+  systemctl reload headscale
+  echo "activated  /etc/headscale/policy.hujson (SIGHUP reload)"
 fi
 if has /etc/wireguard/wg0.conf; then
   install -m 600 $stage/wg0.conf /etc/wireguard/wg0.conf

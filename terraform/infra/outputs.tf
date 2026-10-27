@@ -105,3 +105,8 @@ output "oidc_issuer_url" {
   description = "Pocket ID's public URL; terraform/cluster deploys it there."
   value       = var.oidc_issuer_url
 }
+
+output "headscale_url" {
+  description = "Headscale's URL (empty when not configured); terraform/identity points its OIDC client's callback here."
+  value       = var.headscale_hostname == "" ? "" : "https://${var.headscale_hostname}"
+}

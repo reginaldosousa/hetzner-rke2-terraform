@@ -37,3 +37,12 @@ resource "hcloud_network_route" "vpn_clients" {
   destination = var.vpn_cidr
   gateway     = local.gateway_ip
 }
+
+# Same for tailnet clients (Headscale); the gateway hands them to tailscale0.
+resource "hcloud_network_route" "tailnet" {
+  count = local.headscale ? 1 : 0
+
+  network_id  = hcloud_network.main.id
+  destination = local.tailnet_cidr
+  gateway     = local.gateway_ip
+}

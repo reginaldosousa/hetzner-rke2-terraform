@@ -1,6 +1,7 @@
 #!/usr/sbin/nft -f
 # Masquerade traffic leaving the private network for the internet.
-# VPN <-> network traffic is routed (not NATed); see hcloud_network_route.vpn_clients.
+# VPN <-> network traffic is routed (not NATed); see hcloud_network_route.vpn_clients
+# and .tailnet. tailscaled runs with netfilter off: every rule lives here.
 flush ruleset
 
 table inet filter {
@@ -16,10 +17,15 @@ table inet filter {
     # Hetzner assigns both the public and the private address over DHCP.
     udp sport 67 udp dport 68 accept
     udp dport ${vpn_port} accept
+%{ if headscale ~}
+    # Headscale (control plane, DERP relay, ACME), STUN, tailscaled's direct path.
+    tcp dport 443 accept
+    udp dport { 3478, 41641 } accept
+%{ endif ~}
     # SSH (scripts/sync-gateway.sh) only through the tunnel.
-    iifname "wg0" tcp dport 22 accept
+    iifname { ${vpn_ifaces} } tcp dport 22 accept
     # HAProxy: kubectl over the VPN, node joins from the private network.
-    ip saddr { ${network_cidr}, ${vpn_cidr} } tcp dport { 6443, 9345 } accept
+    ip saddr { ${network_cidr}, ${vpn_cidrs} } tcp dport { 6443, 9345 } accept
   }
 
   chain forward {
@@ -28,17 +34,17 @@ table inet filter {
     # Operators reach nodes only over SSH and the apiserver; kubectl
     # exec/logs/port-forward all go through the apiserver. etcd, the kubelet
     # and everything else stay closed to VPN clients.
-    iifname "wg0" ip daddr ${network_cidr} tcp dport { 22, 6443 } accept
-    iifname "wg0" ip daddr ${network_cidr} meta l4proto icmp accept
+    iifname { ${vpn_ifaces} } ip daddr ${network_cidr} tcp dport { 22, 6443 } accept
+    iifname { ${vpn_ifaces} } ip daddr ${network_cidr} meta l4proto icmp accept
     # Internet egress only: nodes (and the pods behind them) must not open
     # connections to VPN clients, i.e. to operators' machines.
-    ip saddr ${network_cidr} ip daddr != ${vpn_cidr} accept
+    ip saddr ${network_cidr} ip daddr != { ${vpn_cidrs} } accept
   }
 }
 
 table ip nat {
   chain postrouting {
     type nat hook postrouting priority 100;
-    ip saddr ${network_cidr} ip daddr != { ${network_cidr}, ${vpn_cidr} } masquerade
+    ip saddr ${network_cidr} ip daddr != { ${network_cidr}, ${vpn_cidrs} } masquerade
   }
 }

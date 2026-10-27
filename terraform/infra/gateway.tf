@@ -14,6 +14,42 @@ locals {
   ]
 }
 
+# Headscale (docs/adr/0025) runs once its Pocket ID client exists
+# (terraform/identity output headscale_oidc_client_secret).
+locals {
+  headscale    = var.headscale_hostname != "" && var.headscale_oidc_client_secret != ""
+  tailnet_cidr = "100.64.0.0/10" # Tailscale's CGNAT range; clients expect it
+  vpn_ifaces   = local.headscale ? "\"wg0\", \"tailscale0\"" : "\"wg0\""
+  vpn_cidrs    = local.headscale ? "${var.vpn_cidr}, ${local.tailnet_cidr}" : var.vpn_cidr
+
+  headscale_files = !local.headscale ? {} : {
+    "/etc/headscale/config.yaml" = templatefile("${path.module}/templates/gateway/headscale-config.yaml.tftpl", {
+      hostname        = var.headscale_hostname
+      tailnet_cidr    = local.tailnet_cidr
+      region_code     = var.cluster_name
+      public_ipv4     = hcloud_primary_ip.gateway.ip_address
+      node_expiry     = var.headscale_node_expiry
+      oidc_issuer_url = var.oidc_issuer_url
+      oidc_client_id  = var.headscale_oidc_client_id
+      vpn_group       = var.headscale_vpn_group
+    })
+    "/etc/headscale/policy.hujson" = templatefile("${path.module}/templates/gateway/headscale-policy.hujson.tftpl", {
+      network_cidr = var.network_cidr
+    })
+    "/etc/headscale/oidc_client_secret" = var.headscale_oidc_client_secret
+    "/usr/local/sbin/headscale-install.sh" = templatefile("${path.module}/templates/gateway/headscale-install.sh.tftpl", {
+      headscale_version    = var.headscale_version
+      headscale_deb_sha256 = var.headscale_deb_sha256
+      tailscale_version    = var.tailscale_version
+    })
+    "/usr/local/sbin/tailnet-join.sh" = templatefile("${path.module}/templates/gateway/tailnet-join.sh.tftpl", {
+      hostname     = var.headscale_hostname
+      network_cidr = var.network_cidr
+    })
+    "/etc/systemd/system/tailnet-join.service" = file("${path.module}/templates/gateway/tailnet-join.service")
+  }
+}
+
 locals {
   gateway_known_hosts = "${local.gateway_ip} ${trimspace(tls_private_key.gateway_host.public_key_openssh)}"
 }
@@ -21,7 +57,7 @@ locals {
 # Everything on the gateway that can change after first boot. Rendered once:
 # cloud-init writes it on first boot, scripts/sync-gateway.sh pushes updates.
 locals {
-  gateway_files = {
+  gateway_files = merge(local.headscale_files, {
     "/etc/wireguard/wg0.conf" = templatefile("${path.module}/templates/gateway/wg0.conf.tftpl", {
       vpn_gateway_ip = local.vpn_gateway_ip
       vpn_prefix     = split("/", var.vpn_cidr)[1]
@@ -31,14 +67,16 @@ locals {
     })
     "/etc/nftables.conf" = templatefile("${path.module}/templates/gateway/nftables.conf.tftpl", {
       network_cidr = var.network_cidr
-      vpn_cidr     = var.vpn_cidr
+      vpn_cidrs    = local.vpn_cidrs
+      vpn_ifaces   = local.vpn_ifaces
       vpn_port     = var.vpn_port
+      headscale    = local.headscale
     })
     "/etc/haproxy/haproxy.cfg" = templatefile("${path.module}/templates/gateway/haproxy.cfg.tftpl", {
       gateway_ip = local.gateway_ip
       master_ips = local.master_ips
     })
-  }
+  })
 }
 
 # The gateway's SSH host key, so scripts/sync-gateway.sh can pin it
@@ -55,8 +93,8 @@ resource "wireguard_asymmetric_key" "client" {
   for_each = var.vpn_clients
 }
 
-# The only inbound traffic allowed from the internet is WireGuard.
-# SSH to the gateway itself goes through the tunnel.
+# Inbound from the internet: WireGuard, and with Headscale its HTTPS/DERP
+# port, STUN and tailscaled's direct path. SSH goes through a tunnel.
 resource "hcloud_firewall" "gateway" {
   name = "${var.cluster_name}-gateway"
 
@@ -65,6 +103,16 @@ resource "hcloud_firewall" "gateway" {
     protocol   = "udp"
     port       = tostring(var.vpn_port)
     source_ips = ["0.0.0.0/0", "::/0"]
+  }
+
+  dynamic "rule" {
+    for_each = local.headscale ? [["tcp", "443"], ["udp", "3478"], ["udp", "41641"]] : []
+    content {
+      direction  = "in"
+      protocol   = rule.value[0]
+      port       = rule.value[1]
+      source_ips = ["0.0.0.0/0", "::/0"]
+    }
   }
 }
 

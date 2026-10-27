@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Install or upgrade Headscale and Tailscale to the pinned versions, then
+# (re)start them. Idempotent: cloud-init runs it on first boot and
+# scripts/sync-gateway.sh whenever it or Headscale's config changes.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+hs_version="${headscale_version}"
+ts_version="${tailscale_version}"
+arch="$(dpkg --print-architecture)"
+
+installed() { dpkg-query -W -f='$${Version}' "$1" 2>/dev/null || true; }
+
+if [ "$(installed headscale)" != "$hs_version" ]; then
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/headscale.deb" \
+    "https://github.com/juanfont/headscale/releases/download/v$hs_version/headscale_$${hs_version}_$${arch}.deb"
+  echo "${headscale_deb_sha256}  $tmp/headscale.deb" | sha256sum -c --quiet -
+  # --force-confold: keep the config Terraform already wrote.
+  dpkg -i --force-confold "$tmp/headscale.deb"
+fi
+
+if [ "$(installed tailscale)" != "$ts_version" ]; then
+  # Packages signed by Tailscale; apt checks them against this keyring.
+  curl -fsSL -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
+    https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg
+  curl -fsSL -o /etc/apt/sources.list.d/tailscale.list \
+    https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list
+  apt-get update -q
+  apt-get install -y -q --allow-downgrades "tailscale=$ts_version" jq
+fi
+
+# Files land as root 0600; the headscale service user must read them.
+chown root:headscale /etc/headscale/config.yaml /etc/headscale/policy.hujson /etc/headscale/oidc_client_secret
+chmod 0640 /etc/headscale/config.yaml /etc/headscale/policy.hujson /etc/headscale/oidc_client_secret
+
+systemctl daemon-reload
+systemctl enable headscale tailscaled
+systemctl restart headscale
+systemctl start tailscaled
+systemctl enable tailnet-join.service
+systemctl restart tailnet-join.service --no-block

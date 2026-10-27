@@ -216,3 +216,67 @@ variable "oidc_client_id" {
     error_message = "oidc_client_id is the client ID Pocket ID shows (a UUID)."
   }
 }
+
+variable "headscale_hostname" {
+  description = "Public name of Headscale on the gateway, e.g. vpn.example.com. Its A record must point at the gateway's IP before Headscale is enabled (ACME). Empty disables Headscale."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.headscale_hostname == "" || can(regex("^[a-z0-9.-]+$", var.headscale_hostname))
+    error_message = "headscale_hostname is a bare host name, e.g. vpn.example.com."
+  }
+}
+
+variable "headscale_oidc_client_id" {
+  description = "Client ID of Headscale's Pocket ID client (terraform/identity output headscale_oidc_client_id)."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._-]*$", var.headscale_oidc_client_id))
+    error_message = "headscale_oidc_client_id is the client ID Pocket ID shows."
+  }
+}
+
+variable "headscale_oidc_client_secret" {
+  description = "Secret of Headscale's Pocket ID client (terraform/identity output headscale_oidc_client_secret). Headscale is enabled once this and headscale_hostname are set."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "headscale_vpn_group" {
+  description = "Pocket ID group whose members may log in to the tailnet."
+  type        = string
+  default     = "vpn"
+}
+
+variable "headscale_node_expiry" {
+  description = "How long a tailnet login lasts before the user must sign in again (Go duration)."
+  type        = string
+  default     = "720h"
+}
+
+variable "headscale_version" {
+  description = "Headscale release installed on the gateway."
+  type        = string
+  default     = "0.29.6"
+}
+
+variable "headscale_deb_sha256" {
+  description = "sha256 of headscale_<version>_linux_arm64.deb (checksums.txt of the release); the gateway is arm64."
+  type        = string
+  default     = "077467b12ba2122086db434335fadfa8deee4dbddacb1f959eecc6d7d10b81d4"
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{64}$", var.headscale_deb_sha256))
+    error_message = "headscale_deb_sha256 must be a 64-character hex sha256."
+  }
+}
+
+variable "tailscale_version" {
+  description = "Tailscale client on the gateway (subnet router), from pkgs.tailscale.com."
+  type        = string
+  default     = "1.104.2"
+}

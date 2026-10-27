@@ -1,0 +1,25 @@
+// Tailnet policy (docs/adr/0025). Rendered by Terraform; a changed policy is
+// checked with `headscale policy check` and loaded with SIGHUP.
+{
+  // The gateway registers itself with a pre-auth key carrying this tag.
+  "tagOwners": {
+    "tag:gateway": [],
+  },
+
+  // Its route to the private network is approved without a manual step.
+  "autoApprovers": {
+    "routes": {
+      "${network_cidr}": ["tag:gateway"],
+    },
+  },
+
+  // Whoever got in (vpn group in Pocket ID) reaches SSH and the apiserver,
+  // the same as WireGuard clients. No traffic between users' devices.
+  "grants": [
+    {
+      "src": ["autogroup:member"],
+      "dst": ["${network_cidr}"],
+      "ip": ["tcp:22", "tcp:6443", "icmp:*"],
+    },
+  ],
+}

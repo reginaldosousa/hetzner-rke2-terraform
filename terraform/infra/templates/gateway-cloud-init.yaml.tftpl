@@ -35,3 +35,4 @@ runcmd:
   - systemctl enable --now nftables
   - systemctl enable --now wg-quick@wg0
   - systemctl enable haproxy && systemctl restart haproxy
+  - if [ -f /usr/local/sbin/headscale-install.sh ]; then bash /usr/local/sbin/headscale-install.sh; fi

@@ -1,0 +1,81 @@
+# Headscale: the tailnet's coordination server, login through Pocket ID
+# (docs/adr/0025). Rendered by Terraform; scripts/sync-gateway.sh pushes it.
+server_url: https://${hostname}
+# Public: control plane, embedded DERP relay and the ACME TLS-ALPN-01 challenge.
+listen_addr: 0.0.0.0:443
+metrics_listen_addr: 127.0.0.1:9090
+grpc_listen_addr: 127.0.0.1:50443
+grpc_allow_insecure: false
+
+noise:
+  private_key_path: /var/lib/headscale/noise_private.key
+
+prefixes:
+  v4: ${tailnet_cidr}
+  allocation: sequential
+
+# Relay only through the gateway itself, never Tailscale's DERP servers.
+derp:
+  server:
+    enabled: true
+    region_id: 999
+    region_code: ${region_code}
+    region_name: ${region_code} gateway
+    verify_clients: true
+    stun_listen_addr: 0.0.0.0:3478
+    private_key_path: /var/lib/headscale/derp_server_private.key
+    automatically_add_embedded_derp_region: true
+    ipv4: ${public_ipv4}
+  urls: []
+  paths: []
+  auto_update_enabled: false
+
+disable_check_updates: true
+
+node:
+  # OIDC logins expire: someone removed from the vpn group in Pocket ID loses
+  # access at the latest after this (headscale nodes expire cuts it sooner).
+  expiry: ${node_expiry}
+
+database:
+  type: sqlite
+  sqlite:
+    path: /var/lib/headscale/db.sqlite
+    write_ahead_log: true
+
+tls_letsencrypt_hostname: ${hostname}
+tls_letsencrypt_cache_dir: /var/lib/headscale/cache
+tls_letsencrypt_challenge_type: TLS-ALPN-01
+
+log:
+  level: info
+
+policy:
+  mode: file
+  path: /etc/headscale/policy.hujson
+
+# Leave clients' DNS alone: the tailnet only carries the routes to the cluster.
+dns:
+  magic_dns: false
+  override_local_dns: false
+  nameservers:
+    global: []
+
+oidc:
+  only_start_if_oidc_is_available: false
+  issuer: ${oidc_issuer_url}
+  client_id: ${oidc_client_id}
+  client_secret_path: /etc/headscale/oidc_client_secret
+  scope: ["openid", "profile", "email", "groups"]
+  # Access to the VPN is membership of this Pocket ID group (terraform/identity).
+  allowed_groups:
+    - ${vpn_group}
+  pkce:
+    enabled: true
+    method: S256
+
+unix_socket: /var/run/headscale/headscale.sock
+unix_socket_permission: "0770"
+
+logtail:
+  enabled: false
