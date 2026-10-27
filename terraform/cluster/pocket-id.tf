@@ -137,7 +137,10 @@ resource "kubernetes_deployment_v1" "pocket_id" {
             limits   = { memory = "256Mi" }
           }
 
+          # The provider writes runAsNonRoot=false here unless set, overriding
+          # the pod-level value and failing the restricted policy.
           security_context {
+            run_as_non_root            = true
             allow_privilege_escalation = false
             capabilities {
               drop = ["ALL"]
