@@ -1,7 +1,7 @@
 # 0023. Login OIDC no kubectl com Pocket ID
 
 - **Status:** Aceito
-- **Commits:** `48852cd`, `ee78a3d`
+- **Commits:** `48852cd`, `ee78a3d`, `9ceee1f`, `70269b6`, `90792b0`
 
 ## Contexto
 

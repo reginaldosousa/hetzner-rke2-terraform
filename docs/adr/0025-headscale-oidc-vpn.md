@@ -1,7 +1,7 @@
 # 0025. VPN com login OIDC: Headscale no gateway
 
 - **Status:** Aceito
-- **Commits:** `f80ec35`, `79c61f1`, `78782c9`, `96178ce`, `7af51ad`, `d56b892`, `2838e1e`
+- **Commits:** `f80ec35`, `79c61f1`, `78782c9`, `96178ce`, `7af51ad`, `d56b892`, `2838e1e`, `43c6250`
 
 ## Contexto
 

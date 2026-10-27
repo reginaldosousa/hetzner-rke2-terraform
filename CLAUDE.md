@@ -31,9 +31,10 @@ printf '%s\n' 'templatefile("templates/worker-userdata.yaml.tftpl", {control_pla
 
 - **Three Terraform roots, applied in order.**
   - `terraform/infra` talks only to the Hetzner API.
-  - `terraform/cluster` talks to Kubernetes through `../../kubeconfig`, so it only works with the WireGuard tunnel up. It reads infra's outputs through `terraform_remote_state` from R2 (`infra/terraform.tfstate` in bucket `rke2-tfstate`). Both roots use the S3 backend against Cloudflare R2 with the `r2` AWS profile, and `use_lockfile` needs Terraform 1.10 or later.   - `terraform/identity` manages Pocket ID groups, OIDC clients and users through its public API (provider `Trozz/pocketid`, pinned exactly, docs/adr/0024). It needs an admin API key that only exists after the first admin is set up, so it can't live in `cluster`. The `kubectl` client's ID must equal infra's `oidc_client_id`.
+  - `terraform/cluster` talks to Kubernetes through `../../kubeconfig`, so it only works with a VPN up (tailnet or WireGuard). It reads infra's outputs through `terraform_remote_state` from R2 (`infra/terraform.tfstate` in bucket `rke2-tfstate`).
+  - `terraform/identity` manages Pocket ID groups, OIDC clients and users through its public API (provider `Trozz/pocketid`, pinned exactly, docs/adr/0024). It needs an admin API key that only exists after the first admin is set up, so it can't live in `cluster`. The `kubectl` client's ID must equal infra's `oidc_client_id`.
 
-  Changing the infra backend or its outputs breaks `cluster` and `identity`. R2 has no versioning, so run `scripts/backup-state.sh` after applies.
+  All three roots use the S3 backend against Cloudflare R2 with the `r2` AWS profile, and `use_lockfile` needs Terraform 1.10 or later. Remote-state reads use outputs directly, never `try()`, so a missing output fails the plan instead of planning resources away. Changing the infra backend or its outputs breaks `cluster` and `identity`. R2 has no versioning, so run `scripts/backup-state.sh` after applies.
 - **Fixed private IPs** are computed with `cidrhost` in `network.tf` locals:
   - gateway `.2`, which is also the control-plane endpoint (`local.control_plane_ip`). There is no paid LB: HAProxy on the gateway forwards :6443 and :9345 to the masters. Only kubectl and joining nodes use it, because joined RKE2 agents load-balance across the masters themselves.
   - masters `.11` to `.13`. HAProxy's backend list is generated from `local.master_ips`.

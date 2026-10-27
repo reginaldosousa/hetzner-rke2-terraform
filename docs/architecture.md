@@ -60,13 +60,13 @@ Rotas da rede hcloud:
 
 ```mermaid
 sequenceDiagram
-    participant L as laptop (10.200.0.N)
-    participant G as gateway (10.200.0.1 / 10.0.1.2)
+    participant L as laptop (100.64.x tailnet / 10.200.0.N WireGuard)
+    participant G as gateway (10.0.1.2)
     participant M as masters 10.0.1.11-13
-    L->>G: WireGuard udp/51820
+    L->>G: Tailscale (login no Pocket ID) ou WireGuard udp/51820
     L->>G: kubectl → HAProxy 10.0.1.2:6443
     G->>M: :6443 (master saudável)
-    L->>M: ssh :22 (roteado pelo gateway, sem NAT)
+    L->>M: ssh :22 (WireGuard roteado; tailnet com SNAT para 10.0.1.2)
     Note over G,M: da VPN, só :22, :6443 e ICMP passam para a rede
 ```
 
@@ -135,8 +135,12 @@ flowchart TB
         sec["tier metadata-guard · kured · placeholders (2 workers)"]
         mon["kube-prometheus-stack (Telegram + dead man's switch)"]
         vel["Velero (depois do Prometheus, que traz os CRDs)"]
-        hs ~~~ kb ~~~ kp ~~~ tr ~~~ cfr ~~~ dns ~~~ sec ~~~ mon --> vel
+        pid["Pocket ID + RBAC OIDC + registro DNS do Headscale"]
+        hs ~~~ kb ~~~ kp ~~~ tr ~~~ cfr ~~~ dns ~~~ sec ~~~ mon --> vel ~~~ pid
     end
+    cluster --> setup["Pocket ID: admin com passkey em /setup → API key"]
+    setup --> ident["terraform/identity apply<br/>grupos k8s-admins/vpn, clients kubectl e headscale"]
+    ident --> infra2["terraform/infra apply com oidc_client_id e headscale_*<br/>→ sync-gateway instala o Headscale · sync-masters liga o OIDC"]
 ```
 
 Mudanças futuras nos drop-ins dos masters não passam pelo cloud-init (os masters ignoram `user_data`): depois do

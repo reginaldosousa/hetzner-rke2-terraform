@@ -35,7 +35,8 @@ alternativas descartadas.
 ## Acesso e borda
 
 ### WireGuard
-- **Papel:** única entrada administrativa (SSH, kubectl, Terraform do root `cluster`).
+- **Papel:** entrada de emergência (break-glass) e caminho dos applies; o uso diário é a tailnet do Headscale
+  ([ADR 0025](adr/0025-headscale-oidc-vpn.md)).
 - **Por quê:** kernel nativo, uma porta UDP, nada responde a quem não tem chave (não há serviço "visível" para
   scanners), configuração declarativa e trivial de gerar no Terraform (provider `OJFord/wireguard`). Peers
   novos são aplicados com `wg syncconf` sem derrubar túneis.
@@ -181,13 +182,14 @@ alternativas descartadas.
 
 ## Infraestrutura como código e operação
 
-### Terraform (≥ 1.10, < 2.0), dois roots
-- **Papel:** todo o provisionamento. O root `infra` fala com a API da Hetzner, e o root `cluster` fala com o
-  Kubernetes.
+### Terraform (≥ 1.10, < 2.0), três roots
+- **Papel:** todo o provisionamento. O root `infra` fala com a API da Hetzner, o `cluster` fala com o
+  Kubernetes e o `identity` com a API do Pocket ID ([ADR 0024](adr/0024-identity-root-pocketid-provider.md)).
 - **Por quê:** é a ferramenta com providers maduros para tudo aqui (hcloud, cloudflare, helm, kubernetes, tls,
-  random, wireguard). A divisão em dois roots existe porque `cluster` só funciona com a VPN e o cluster no ar. A versão
+  random, wireguard, pocketid). A divisão existe porque `cluster` só funciona com a VPN e o cluster no ar, e
+  `identity` só depois que o Pocket ID tem um admin e uma API key. A versão
   1.10 é necessária para `use_lockfile` no backend S3, e a 1.9 para validações entre variáveis.
-- **ADR:** [0006](adr/0006-two-terraform-roots.md)
+- **ADR:** [0006](adr/0006-two-terraform-roots.md), [0024](adr/0024-identity-root-pocketid-provider.md)
 
 ### Cloudflare R2 como backend de state
 - **Papel:** guarda o state remoto (bucket `rke2-tfstate`) com lock nativo.

@@ -111,6 +111,19 @@ terraform init && terraform apply
 After step 4 the CCM initialises the masters (`spec.providerID: hcloud://…`) and
 Karpenter starts serving pending pods.
 
+Identity and the daily VPN come after that (details in docs/operations.md and
+ADRs 0023–0025):
+
+```bash
+# 5. Pocket ID: keep pocket_id_allowed_cidrs = ["<your IP>/32"] until you create the
+#    admin at https://<oidc_issuer_url>/setup, then set it to [] and apply cluster again.
+# 6. terraform/identity: Pocket ID API key + users in its tfvars, then apply.
+#    It creates the k8s-admins/vpn groups and the kubectl and headscale OIDC clients.
+# 7. terraform/infra: set oidc_client_id and headscale_* from
+#    `terraform -chdir=terraform/identity output`, apply, then scripts/sync-masters.sh.
+#    (headscale_hostname first needs one infra + cluster apply for its DNS record.)
+```
+
 ## Verify
 
 ```bash
@@ -210,7 +223,11 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
   as Karpenter drifts/consolidates them.
 - **Upgrading the Karpenter chart**: Helm does not update CRDs — apply them first
   (see the provider README).
-- **Adding / removing VPN users**: edit `vpn_clients` (`name = <host number>`, e.g.
+- **VPN for daily use**: Headscale on the gateway. Access is membership of the
+  Pocket ID group `vpn` (`users` in `terraform/identity`); clients run
+  `tailscale up --login-server https://<headscale_hostname> --accept-routes`.
+  Static WireGuard below stays as break-glass; don't run both at once (same routes).
+- **Adding / removing WireGuard (break-glass) users**: edit `vpn_clients` (`name = <host number>`, e.g.
   `ci = 11` → 10.200.0.11) and `terraform apply`. Numbers are fixed, so removing a
   client never renumbers the others. Apply pushes the new peer list to the running
   gateway (`terraform_data.gateway_sync` → `scripts/sync-gateway.sh`). It validates
@@ -219,7 +236,7 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
   invalid config), the apply fails and the next apply retries, so a removed client
   can't silently keep access. Hand out a new client's config with
   `terraform output -json vpn_client_configs | jq -r .ci`.
-- **Masters' RKE2 config** (Pod Security, etcd snapshots, metrics) lives in drop-ins
+- **Masters' RKE2 config** (Pod Security, etcd snapshots, metrics, OIDC) lives in drop-ins
   under `templates/master/`. After an `infra` apply that changes them, run
   `scripts/sync-masters.sh`: it pushes them and restarts one master at a time.
 - **Monitoring**: Grafana and Prometheus have no Ingress; use
@@ -237,7 +254,7 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
 ## CI
 
 `.github/workflows/terraform.yml` runs on every PR and on pushes to `main`. It
-checks fmt and validate for both roots (with the committed lock files, read-only),
+checks fmt and validate for all three roots (with the committed lock files, read-only),
 then runs tflint, trivy (HIGH/CRITICAL), `helm lint --strict` on the NodePool
 chart, and shellcheck. Tool versions are pinned in the workflow's `env:`, and
 actions are pinned to commit SHAs. CI never plans or applies against real
@@ -245,8 +262,8 @@ infrastructure: applies run locally over the VPN from a reviewed plan.
 
 ## Security notes
 
-- Terraform state contains the RKE2 tokens, WireGuard and SSH host private keys
-  and the Hetzner token. It lives in R2 (encrypted at rest by Cloudflare, but not
+- Terraform state contains the RKE2 tokens, WireGuard and SSH host private keys,
+  the Hetzner token, Pocket ID's encryption key and Headscale's OIDC client secret. It lives in R2 (encrypted at rest by Cloudflare, but not
   client-side encrypted), so **anyone with the R2 token can read every secret**:
   keep the token scoped to the bucket and out of CI.
 - **R2 has no object versioning.** Run `scripts/backup-state.sh` after each apply;
