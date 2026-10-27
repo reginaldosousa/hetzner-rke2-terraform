@@ -6,7 +6,7 @@
 |---|---|
 | Gateway `udp/51820` | WireGuard: sem chave válida não há resposta. O nftables do gateway (policy drop) descarta o resto |
 | LB de ingress `80/443` | Traefik; só serve o que existe como Ingress. HTTP vira 308 para HTTPS |
-| Pocket ID (`auth.devcomm.com.br`) | Login só por passkey; `/setup` fecha depois do primeiro admin ([ADR 0023](adr/0023-oidc-pocket-id.md)) |
+| Pocket ID (`auth.devcomm.com.br`) | Login só por passkey; IP do operador (`pocket_id_allowed_cidrs`) até o `/setup` criar o primeiro admin ([ADR 0023](adr/0023-oidc-pocket-id.md)) |
 | Tudo o mais | Nada tem IP público. Da VPN só SSH e API do Kubernetes; etcd e kubelet só pela rede privada |
 
 Como a Hetzner não permite firewall em servidores só com rede privada, o isolamento dos masters e workers vem da

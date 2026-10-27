@@ -38,8 +38,9 @@ curta e sem revogação individual. Quem tem o arquivo e a VPN tem tudo. O plano
 
 - Se o Pocket ID cair (cluster fora do ar, volume perdido), o login OIDC para. O acesso volta pelo kubeconfig
   admin.
-- A página `/setup` do Pocket ID fica aberta até a criação do primeiro admin. Ela precisa ser feita logo depois
-  do primeiro apply.
+- A página `/setup` do Pocket ID fica aberta até a criação do primeiro admin. Por isso
+  `pocket_id_allowed_cidrs` (obrigatória) limita o Ingress ao IP do operador por um middleware `ipAllowList` do
+  Traefik, até o setup terminar. Não dá para fazer o setup por port-forward: a passkey fica presa ao host público.
 - `oidc_issuer_url` precisa bater exatamente com o `iss` do token. Mudar o host exige um apply do `infra`, um
   `sync-masters.sh` e kubeconfigs novos.
 - Perder a chave de criptografia (state) deixa o banco ilegível.

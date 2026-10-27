@@ -1,6 +1,6 @@
 # Pocket ID: the OIDC provider for kubectl (and later the VPN), passkey-only
-# (docs/adr/0023). Public on purpose: a login has to work before any tunnel is
-# up. Its URL is the issuer the kube-apiserver trusts, so it comes from infra.
+# (docs/adr/0023). Public on purpose once set up: a login has to work before
+# any tunnel is up. Its URL is the issuer the kube-apiserver trusts, so it comes from infra.
 locals {
   pocket_id_host = trimprefix(local.infra.oidc_issuer_url, "https://")
 }
@@ -177,14 +177,36 @@ resource "kubernetes_service_v1" "pocket_id" {
   }
 }
 
+# Until the first admin exists, /setup lets anyone create it (and so join
+# k8s-admins). The allowlist holds the operator's public IP through that window;
+# Traefik sees real client IPs via the LB's PROXY header. Setup can't go through
+# a port-forward: passkeys are bound to the public host name.
+resource "kubernetes_manifest" "pocket_id_allowlist" {
+  count = length(var.pocket_id_allowed_cidrs) > 0 ? 1 : 0
+
+  manifest = {
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "Middleware"
+    metadata = {
+      name      = "allowlist"
+      namespace = kubernetes_namespace_v1.pocket_id.metadata[0].name
+    }
+    spec = {
+      ipAllowList = { sourceRange = var.pocket_id_allowed_cidrs }
+    }
+  }
+}
+
 # external-dns publishes the host; cert-manager issues the certificate.
 resource "kubernetes_ingress_v1" "pocket_id" {
   metadata {
     name      = "pocket-id"
     namespace = kubernetes_namespace_v1.pocket_id.metadata[0].name
-    annotations = {
+    annotations = merge({
       "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
-    }
+      }, length(var.pocket_id_allowed_cidrs) == 0 ? {} : {
+      "traefik.ingress.kubernetes.io/router.middlewares" = "${kubernetes_namespace_v1.pocket_id.metadata[0].name}-allowlist@kubernetescrd"
+    })
   }
 
   spec {

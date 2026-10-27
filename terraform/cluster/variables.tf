@@ -142,6 +142,16 @@ variable "pocket_id_version" {
   default     = "v2.19.1"
 }
 
+variable "pocket_id_allowed_cidrs" {
+  description = "Public source ranges allowed to reach Pocket ID; [] makes it public. Keep it to your own IP (e.g. [\"203.0.113.7/32\"]) until the first admin is created at /setup, since until then anyone could create it."
+  type        = list(string)
+
+  validation {
+    condition     = alltrue([for c in var.pocket_id_allowed_cidrs : can(cidrhost(c, 0))])
+    error_message = "pocket_id_allowed_cidrs entries must be CIDRs, e.g. 203.0.113.7/32."
+  }
+}
+
 variable "oidc_admin_group" {
   description = "Pocket ID group whose members get cluster-admin through kubectl OIDC login."
   type        = string

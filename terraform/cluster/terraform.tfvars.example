@@ -4,3 +4,4 @@ cloudflare_provisioning_api_token = "..." # Terraform only, see variables.tf
 telegram_bot_token  = "..." # @BotFather; add the bot to the alert chat
 telegram_chat_id    = "-1001234567890"
 deadmans_switch_url = "https://hc-ping.com/<uuid>" # optional, alerts when the Watchdog stops
+pocket_id_allowed_cidrs = ["203.0.113.7/32"] # your IP until Pocket ID /setup is done, then []

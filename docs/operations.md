@@ -59,9 +59,11 @@ Se um master não voltar, o script para antes do próximo (o etcd segue com 2 de
 ### Login OIDC no kubectl (Pocket ID)
 Primeira vez ([ADR 0023](adr/0023-oidc-pocket-id.md)):
 
-1. `oidc_issuer_url` no `terraform.tfvars` do `infra`, `apply` do `infra` e depois do `cluster`.
-2. **Logo em seguida**, abra `https://auth.devcomm.com.br/setup` e crie o admin com uma passkey. Até isso
-   acontecer, qualquer um pode criar o admin.
+1. `oidc_issuer_url` no `terraform.tfvars` do `infra`. No do `cluster`,
+   `pocket_id_allowed_cidrs = ["<seu IP público>/32"]`, porque até existir um admin qualquer um pode criá-lo em
+   `/setup`. Rode `apply` do `infra` e depois do `cluster`.
+2. Abra `https://auth.devcomm.com.br/setup` e crie o admin com uma passkey. Depois troque para
+   `pocket_id_allowed_cidrs = []` e rode `apply` do `cluster` para deixar o Pocket ID público.
 3. No Pocket ID: crie o grupo `k8s-admins` e adicione os usuários. Crie o client OIDC `kubectl` como **public
    client** (PKCE), com callbacks `http://localhost:8000` e `http://localhost:18000` e acesso restrito ao grupo.
 4. Coloque o client ID em `oidc_client_id`, rode `apply` do `infra` e `scripts/sync-masters.sh`.
