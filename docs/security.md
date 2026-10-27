@@ -23,6 +23,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Token Cloudflare (DNS) | token criado pelo `cluster` (`dns-token.tf`) → Secrets do external-dns e do cert-manager | escopo Zone Read + DNS Write só nas zonas de `external_dns_domains` |
 | Credenciais R2 (state) | perfil AWS `r2` local | operador; **fora do CI** |
 | Credenciais R2 (snapshots do etcd) | token criado pelo `cluster` → Secret `kube-system/rke2-etcd-snapshot-s3` | RKE2 nos masters; escopo só no bucket `rke2-etcd-snapshots` |
+| Token do bot do Telegram / URL do dead man's switch | state do `cluster` → Secret `monitoring/alertmanager-receivers` | Alertmanager |
 | Token Cloudflare de provisionamento | `terraform.tfvars` do `cluster` (provider) | operador; cria buckets R2 e tokens, **nunca** vai para o cluster |
 
 O **state do Terraform contém todos esses segredos** e fica no R2, criptografado em repouso pela Cloudflare mas

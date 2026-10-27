@@ -153,6 +153,18 @@ terraform -chdir=terraform/infra destroy -var protect=false -var gateway_sync=fa
 
 Confira no console da Hetzner se sobrou algum servidor `role=worker` ou volume CSI.
 
+## Monitoramento
+
+Alertas vão para o Telegram (`telegram_chat_id`), e o `Watchdog` para o dead man's switch
+([ADR 0021](adr/0021-monitoring-telegram.md)).
+
+```bash
+kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d; echo
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80        # http://localhost:3000
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093      # silenciar alertas
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090        # Status > Targets
+```
+
 ## Troubleshooting rápido
 
 | Sintoma | Causa provável |

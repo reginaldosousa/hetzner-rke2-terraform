@@ -31,6 +31,7 @@ locals {
     "/etc/rancher/rke2/config.yaml.d/20-etcd-snapshots.yaml" = templatefile("${path.module}/templates/master/20-etcd-snapshots.yaml.tftpl", {
       secret_name = local.etcd_s3_config_secret
     })
+    "/etc/rancher/rke2/config.yaml.d/30-metrics.yaml" = file("${path.module}/templates/master/30-metrics.yaml")
   }
 }
 

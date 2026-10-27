@@ -1,3 +1,6 @@
 external_dns_domains = ["example.com"]
 acme_email           = "ops@example.com"
 cloudflare_provisioning_api_token = "..." # Terraform only, see variables.tf
+telegram_bot_token  = "..." # @BotFather; add the bot to the alert chat
+telegram_chat_id    = "-1001234567890"
+deadmans_switch_url = "https://hc-ping.com/<uuid>" # optional, alerts when the Watchdog stops

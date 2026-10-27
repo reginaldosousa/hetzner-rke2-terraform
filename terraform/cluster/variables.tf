@@ -83,3 +83,32 @@ variable "min_workers" {
     error_message = "min_workers can't be negative."
   }
 }
+
+variable "kube_prometheus_stack_chart_version" {
+  description = "prometheus-community kube-prometheus-stack chart version."
+  type        = string
+  default     = "92.14.0"
+}
+
+variable "telegram_bot_token" {
+  description = "Telegram bot token (from @BotFather) that Alertmanager sends alerts with."
+  type        = string
+  sensitive   = true
+}
+
+variable "telegram_chat_id" {
+  description = "Telegram chat that receives alerts (negative for groups)."
+  type        = string
+
+  validation {
+    condition     = can(regex("^-?[0-9]+$", var.telegram_chat_id))
+    error_message = "telegram_chat_id is the numeric chat ID, e.g. -1001234567890."
+  }
+}
+
+variable "deadmans_switch_url" {
+  description = "Optional ping URL of an external dead man's switch (e.g. healthchecks.io) for the always-firing Watchdog alert. Without it, a dead gateway or Alertmanager goes unnoticed."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

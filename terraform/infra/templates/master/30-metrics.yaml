@@ -1,0 +1,8 @@
+# Let Prometheus (terraform/cluster/monitoring.tf) scrape the control plane over
+# the private network. etcd metrics are plain HTTP on :2381; controller-manager
+# (:10257) and scheduler (:10259) still require authentication.
+etcd-expose-metrics: true
+kube-controller-manager-arg+:
+  - bind-address=0.0.0.0
+kube-scheduler-arg+:
+  - bind-address=0.0.0.0
