@@ -1,0 +1,23 @@
+# Cluster-wide Pod Security default (docs/adr/0018). baseline rejects
+# privileged pods, hostPath, hostNetwork/PID/IPC and added capabilities;
+# restricted is only warned and audited. kube-system runs the CNI, CSI and CCM
+# and is exempt. A namespace that really needs more labels itself with
+# pod-security.kubernetes.io/enforce.
+apiVersion: apiserver.config.k8s.io/v1
+kind: AdmissionConfiguration
+plugins:
+  - name: PodSecurity
+    configuration:
+      apiVersion: pod-security.admission.config.k8s.io/v1
+      kind: PodSecurityConfiguration
+      defaults:
+        enforce: baseline
+        enforce-version: latest
+        audit: restricted
+        audit-version: latest
+        warn: restricted
+        warn-version: latest
+      exemptions:
+        usernames: []
+        runtimeClasses: []
+        namespaces: [kube-system]

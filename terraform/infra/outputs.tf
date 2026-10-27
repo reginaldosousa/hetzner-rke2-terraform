@@ -83,6 +83,11 @@ output "network_cidr" {
   value       = var.network_cidr
 }
 
+output "master_config_files" {
+  description = "Desired RKE2 config files on the masters (path => content), pushed by scripts/sync-masters.sh."
+  value       = local.master_files
+}
+
 output "gateway_config_files" {
   description = "Desired gateway config files (path => content), pushed by scripts/sync-gateway.sh."
   sensitive   = true

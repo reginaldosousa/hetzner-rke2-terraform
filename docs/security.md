@@ -32,6 +32,8 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
 - **Separação de tokens** ([ADR 0008](adr/0008-secrets-out-of-user-data.md)): o user_data é legível pelo
   metadata service (`169.254.169.254`), inclusive por pods. Por isso workers recebem só o agent token, e o token
   da Hetzner não aparece em user_data nenhum.
+- **Pod Security `baseline` por padrão** ([ADR 0018](adr/0018-pod-security-baseline.md)): fora do
+  `kube-system`, nada de pods privilegiados, `hostPath` ou `hostNetwork`. `restricted` só gera aviso.
 - **Metadata service bloqueado para pods** ([ADR 0017](adr/0017-block-instance-metadata-for-pods.md)).
 - **Revogação de VPN fail-closed** ([ADR 0009](adr/0009-gateway-config-sync.md)): remover um peer sem conseguir
   aplicar no gateway faz o `apply` falhar.

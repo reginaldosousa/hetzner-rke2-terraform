@@ -1,0 +1,2 @@
+# Replaces RKE2's default admission config, which enforces "privileged".
+pod-security-admission-config-file: /etc/rancher/rke2/pod-security.yaml

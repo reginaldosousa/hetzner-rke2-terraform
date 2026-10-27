@@ -24,3 +24,4 @@ Para criar um ADR, copie [`template.md`](template.md) para o próximo número li
 | [0015](0015-static-only-ci.md) | CI apenas estático; applies locais pela VPN | Aceito |
 | [0016](0016-ccm-csi-auto-deploy.md) | CCM e CSI via auto-deploy manifests do RKE2 | Aceito |
 | [0017](0017-block-instance-metadata-for-pods.md) | Pods bloqueados no metadata service por um tier do Calico | Aceito |
+| [0018](0018-pod-security-baseline.md) | Pod Security `baseline` por padrão, com drop-ins do RKE2 sincronizados nos masters | Aceito |

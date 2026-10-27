@@ -20,6 +20,7 @@ terraform -chdir=terraform/infra validate
 terraform -chdir=terraform/cluster validate
 helm lint terraform/cluster/charts/nodepools
 scripts/sync-gateway.sh --dry-run           # drift do gateway vs. Terraform
+scripts/sync-masters.sh --dry-run           # drift da config do RKE2 nos masters
 ```
 
 ## VPN
@@ -34,6 +35,19 @@ scripts/sync-gateway.sh --dry-run           # drift do gateway vs. Terraform
 ### Remover / revogar
 Remova a entrada e rode `apply`. O sync é **fail-closed**: se não conseguir enviar (VPN caída, configuração
 inválida), o apply falha e o próximo tenta de novo. Um peer revogado nunca continua com acesso em silêncio.
+
+### Configuração do RKE2 nos masters
+Os masters ignoram `user_data`. Pod Security e snapshots do etcd vivem em arquivos de
+`/etc/rancher/rke2/config.yaml.d/` (output `master_config_files`). Depois de um `apply` do `infra` que mude esses
+arquivos:
+
+```bash
+scripts/sync-masters.sh --dry-run   # diff por master
+scripts/sync-masters.sh             # envia e reinicia um master por vez, esperando /readyz
+```
+
+Se um master não voltar, o script para antes do próximo (o etcd segue com 2 de 3). Veja
+`journalctl -u rke2-server` nele, corrija e rode de novo.
 
 ### Drift do gateway
 `scripts/sync-gateway.sh --dry-run` mostra o diff entre o gateway e o Terraform, com as chaves privadas

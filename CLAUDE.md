@@ -17,6 +17,7 @@ terraform -chdir=terraform/cluster validate
 helm lint terraform/cluster/charts/nodepools
 helm template t terraform/cluster/charts/nodepools --set networkID=12345678 --set sshKeyID=98765432
 scripts/sync-gateway.sh --dry-run               # gateway drift vs. Terraform (needs VPN)
+scripts/sync-masters.sh --dry-run               # masters' RKE2 config drift (needs VPN)
 ```
 
 Render a cloud-init template to check the output. Run this from `terraform/infra`, passing the template's vars, and use `printf`, not zsh `echo`, which mangles `\n`:
@@ -47,6 +48,8 @@ printf '%s\n' 'templatefile("templates/worker-userdata.yaml.tftpl", {control_pla
   In the CCM, `HCLOUD_INSTANCES_ZONE_LABEL_ENABLED=false` leaves the zone label to Karpenter. Keep NodePools pinned to `capacity-type: on-demand`, because Hetzner has no spot capacity.
 - **NodeClass and NodePool live in a local Helm chart** (`terraform/cluster/charts/nodepools`), because `kubernetes_manifest` can't plan before the Karpenter CRDs exist. Numeric IDs in its templates need `| int64`, or Helm renders them as `1.2e+07`.
 - **Masters and the gateway ignore `user_data` changes.** Editing the masters' template only affects newly built masters. The gateway's mutable files (`templates/gateway/*.tftpl` → `local.gateway_files`) reach the running gateway only through `scripts/sync-gateway.sh`, which validates on the gateway and then activates. `terraform_data.gateway_sync` runs it on every apply that changes those files, so applies need the VPN up, and a failed push fails the apply (fail-closed, so VPN revocation is enforced). The script reads `GATEWAY_FILES_JSON` from the environment because `terraform output` is stale during an apply. Use `-var gateway_sync=false` only for the very first bootstrap.
+- **Masters' mutable RKE2 settings are drop-ins** in `/etc/rancher/rke2/config.yaml.d/` (`local.master_files` → output `master_config_files`, templates in `templates/master/`). They hold no secrets. cloud-init writes them on new masters. `scripts/sync-masters.sh` pushes them to running masters and restarts `rke2-server` one at a time, waiting for `/readyz`. It is manual, never run by apply.
+- **Pod Security defaults to `baseline`** (only `kube-system` is exempt), and a Calico tier `metadata-guard` denies pods egress to `169.254.169.254`, except hcloud-csi. A workload that needs privilege or metadata access needs an explicit exception.
 - **The gateway's SSH host key is pinned.** `tls_private_key.gateway_host` is installed by cloud-init (`ssh_keys`), and `sync-gateway.sh` only connects with `StrictHostKeyChecking=yes` against the `gateway_known_hosts` output, never trust-on-first-use, because it pushes the WireGuard private key. Rotating that key means installing it on the running gateway first, over the existing trusted connection.
 - **`protect = true` (default) enables Hetzner delete/rebuild protection** on the masters, the gateway primary IP and the network. `-replace`/destroy of those fails at apply time (not plan) until `protect = false` is applied first. The gateway and workers are intentionally unprotected.
 - **No Hetzner firewalls on private-only servers.** Hetzner rejects them with `PrivateNetOnlyServer`. Isolation comes from having no public interface.

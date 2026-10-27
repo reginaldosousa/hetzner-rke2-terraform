@@ -17,6 +17,16 @@ locals {
   })
 }
 
+# RKE2 settings that must reach running masters too. cloud-init writes them on
+# first boot; scripts/sync-masters.sh pushes changes and restarts one master at
+# a time (masters ignore user_data changes). No secrets here.
+locals {
+  master_files = {
+    "/etc/rancher/rke2/pod-security.yaml"                  = file("${path.module}/templates/master/pod-security.yaml")
+    "/etc/rancher/rke2/config.yaml.d/10-pod-security.yaml" = file("${path.module}/templates/master/10-pod-security.yaml")
+  }
+}
+
 resource "hcloud_placement_group" "masters" {
   name = "${var.cluster_name}-masters"
   type = "spread"
@@ -58,6 +68,7 @@ resource "hcloud_server" "master" {
     location               = var.location
     ccm_version            = var.ccm_chart_version
     csi_version            = var.csi_chart_version
+    files                  = local.master_files
   })
 
   labels = {
