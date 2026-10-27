@@ -16,8 +16,9 @@ locals {
     (pocketid_group.k8s_admins.name) = pocketid_group.k8s_admins.id
     (pocketid_group.vpn.name)        = pocketid_group.vpn.id
   }
-  # From infra once headscale_hostname is set there.
-  headscale_url = try(local.infra.headscale_url, "")
+  # "" until infra sets headscale_hostname. No try(): a missing output must
+  # fail the plan, not plan the client (and its secret) away.
+  headscale_url = local.infra.headscale_url
 }
 
 # kubelogin: public client with PKCE on localhost callbacks. Its ID is the
@@ -45,6 +46,11 @@ resource "pocketid_client" "headscale" {
   pkce_enabled        = true
   callback_urls       = ["${local.headscale_url}/oidc/callback"]
   allowed_user_groups = [pocketid_group.vpn.id]
+
+  lifecycle {
+    # A new client means a new secret: VPN logins fail until infra is reapplied.
+    prevent_destroy = true
+  }
 }
 
 resource "pocketid_user" "this" {

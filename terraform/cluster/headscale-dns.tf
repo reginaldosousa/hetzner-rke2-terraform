@@ -1,7 +1,8 @@
 # Headscale's name on the gateway (docs/adr/0025). Not proxied: clients speak
 # Tailscale's protocol and DERP to it directly, and ACME validates on :443.
 locals {
-  headscale_hostname = trimprefix(try(local.infra.headscale_url, ""), "https://")
+  # No try(): a missing output must fail the plan, not plan this record away.
+  headscale_hostname = trimprefix(local.infra.headscale_url, "https://")
 }
 
 resource "cloudflare_dns_record" "headscale" {
