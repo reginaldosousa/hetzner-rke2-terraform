@@ -100,3 +100,8 @@ output "gateway_config_files" {
   sensitive   = true
   value       = local.gateway_files
 }
+
+output "oidc_issuer_url" {
+  description = "Pocket ID's public URL; terraform/cluster deploys it there."
+  value       = var.oidc_issuer_url
+}

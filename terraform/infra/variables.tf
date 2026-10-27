@@ -195,3 +195,13 @@ variable "gateway_sync" {
   type        = bool
   default     = true
 }
+
+variable "oidc_issuer_url" {
+  description = "Public URL of Pocket ID (terraform/cluster deploys it there), e.g. https://auth.example.com. It is the OIDC issuer the kube-apiserver trusts."
+  type        = string
+
+  validation {
+    condition     = can(regex("^https://[a-z0-9.-]+$", var.oidc_issuer_url))
+    error_message = "oidc_issuer_url must be https://<host>, with no path or trailing slash (it must match the token's iss exactly)."
+  }
+}

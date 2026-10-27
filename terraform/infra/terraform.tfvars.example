@@ -1,6 +1,7 @@
 # Copy to terraform.tfvars (git-ignored) and fill in.
 hcloud_token   = "REPLACE_ME"
 ssh_public_key = "ssh-ed25519 AAAA... you@laptop"
+oidc_issuer_url = "https://auth.example.com" # Pocket ID, deployed by terraform/cluster
 
 # cluster_name = "rke2"
 # location     = "nbg1"

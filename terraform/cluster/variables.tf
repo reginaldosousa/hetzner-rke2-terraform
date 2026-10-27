@@ -135,3 +135,9 @@ variable "velero_bucket" {
   type        = string
   default     = "rke2-velero"
 }
+
+variable "pocket_id_version" {
+  description = "Pocket ID release (image ghcr.io/pocket-id/pocket-id:<version>-distroless)."
+  type        = string
+  default     = "v2.19.1"
+}
