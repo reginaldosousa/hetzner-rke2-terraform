@@ -1,5 +1,5 @@
 pocket_id_api_token = "..." # Pocket ID > Settings > Admin > API Keys
 
 users = {
-  # reginaldo = { email = "reginaldo.rms@gmail.com", first_name = "Reginaldo", is_admin = true, groups = ["k8s-admins"] }
+  # reginaldo = { email = "reginaldo.rms@gmail.com", first_name = "Reginaldo", is_admin = true, groups = ["k8s-admins", "vpn"] }
 }

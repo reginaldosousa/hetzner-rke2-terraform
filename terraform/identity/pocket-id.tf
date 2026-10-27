@@ -5,10 +5,19 @@ resource "pocketid_group" "k8s_admins" {
   friendly_name = "Kubernetes admins"
 }
 
+# Members may log in to the tailnet (Headscale's allowed_groups, docs/adr/0025).
+resource "pocketid_group" "vpn" {
+  name          = "vpn"
+  friendly_name = "VPN"
+}
+
 locals {
   groups = {
     (pocketid_group.k8s_admins.name) = pocketid_group.k8s_admins.id
+    (pocketid_group.vpn.name)        = pocketid_group.vpn.id
   }
+  # From infra once headscale_hostname is set there.
+  headscale_url = try(local.infra.headscale_url, "")
 }
 
 # kubelogin: public client with PKCE on localhost callbacks. Its ID is the
@@ -26,6 +35,18 @@ resource "pocketid_client" "kubectl" {
   }
 }
 
+# Headscale on the gateway: a confidential client (it keeps a secret, unlike
+# kubelogin), PKCE on top. Its ID and secret go to infra's headscale_oidc_*.
+resource "pocketid_client" "headscale" {
+  count = local.headscale_url == "" ? 0 : 1
+
+  name                = "headscale"
+  is_public           = false
+  pkce_enabled        = true
+  callback_urls       = ["${local.headscale_url}/oidc/callback"]
+  allowed_user_groups = [pocketid_group.vpn.id]
+}
+
 resource "pocketid_user" "this" {
   for_each = var.users
 
@@ -34,8 +55,10 @@ resource "pocketid_user" "this" {
   first_name = each.value.first_name
   last_name  = each.value.last_name
   is_admin   = each.value.is_admin
-  disabled   = each.value.disabled
-  groups     = [for g in each.value.groups : local.groups[g]]
+  # Asserted by whoever adds the user here; Headscale only accepts verified emails.
+  email_verified = true
+  disabled       = each.value.disabled
+  groups         = [for g in each.value.groups : local.groups[g]]
 
   lifecycle {
     # Deleting a user also deletes their passkeys.
