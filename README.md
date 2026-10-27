@@ -104,8 +104,10 @@ see real client IPs.
 
 ```bash
 kubectl apply -f examples/whoami.yaml
+curl http://whoami.devcomm.com.br/   # echoes the request, incl. X-Real-Ip
+# before DNS propagates, hit the LB directly:
 IP=$(kubectl -n kube-system get svc rke2-traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl http://$IP/                     # echoes the request, incl. X-Real-Ip
+curl --resolve whoami.devcomm.com.br:80:$IP http://whoami.devcomm.com.br/
 ```
 
 Traefik serves a self-signed cert until you add TLS (e.g. cert-manager).
