@@ -18,3 +18,6 @@ wg/
 .DS_Store
 
 tfplan
+
+# Local copies of Terraform state (contain secrets)
+state-backups/

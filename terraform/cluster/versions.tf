@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.9, < 2.0"
+  required_version = ">= 1.10, < 2.0" # 1.10: S3 use_lockfile
 
   required_providers {
     helm = {
