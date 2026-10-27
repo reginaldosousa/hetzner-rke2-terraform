@@ -46,6 +46,7 @@ printf '%s\n' 'templatefile("templates/worker-userdata.yaml.tftpl", {control_pla
   In the CCM, `HCLOUD_INSTANCES_ZONE_LABEL_ENABLED=false` leaves the zone label to Karpenter. Keep NodePools pinned to `capacity-type: on-demand`, because Hetzner has no spot capacity.
 - **NodeClass and NodePool live in a local Helm chart** (`terraform/cluster/charts/nodepools`), because `kubernetes_manifest` can't plan before the Karpenter CRDs exist. Numeric IDs in its templates need `| int64`, or Helm renders them as `1.2e+07`.
 - **Masters ignore `user_data` and `image` changes**, so editing their template only affects newly built masters. The gateway has no such guard, so changing `vpn_clients` or its template **recreates the gateway**, along with its public IP.
+- **`protect = true` (default) enables Hetzner delete/rebuild protection** on the masters, the gateway primary IP and the network. `-replace`/destroy of those fails at apply time (not plan) until `protect = false` is applied first. The gateway and workers are intentionally unprotected.
 - **No Hetzner firewalls on private-only servers.** Hetzner rejects them with `PrivateNetOnlyServer`. Isolation comes from having no public interface.
 - **Masters carry the `CriticalAddonsOnly=true:NoExecute` taint.** Anything that must run there, like the Karpenter controller, needs that toleration and a control-plane nodeSelector.
 

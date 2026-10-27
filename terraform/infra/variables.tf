@@ -172,3 +172,9 @@ variable "csi_chart_version" {
   type        = string
   default     = "2.24.1"
 }
+
+variable "protect" {
+  description = "Enable Hetzner delete/rebuild protection on the masters (etcd), the reserved gateway IP and the network. Set false, apply, then replace/destroy; set back to true afterwards."
+  type        = bool
+  default     = true
+}

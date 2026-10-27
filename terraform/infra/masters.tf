@@ -32,6 +32,10 @@ resource "hcloud_server" "master" {
   ssh_keys           = [hcloud_ssh_key.default.id]
   placement_group_id = hcloud_placement_group.masters.id
 
+  # etcd lives here: block accidental delete/rebuild (also from console/API).
+  delete_protection  = var.protect
+  rebuild_protection = var.protect
+
   public_net {
     ipv4_enabled = false
     ipv6_enabled = false

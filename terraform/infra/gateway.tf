@@ -41,6 +41,8 @@ resource "hcloud_primary_ip" "gateway" {
   type        = "ipv4"
   location    = var.location
   auto_delete = false
+  # Losing this address breaks every VPN client config.
+  delete_protection = var.protect
 
   labels = {
     cluster = var.cluster_name

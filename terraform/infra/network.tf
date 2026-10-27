@@ -12,8 +12,9 @@ locals {
 }
 
 resource "hcloud_network" "main" {
-  name     = var.cluster_name
-  ip_range = var.network_cidr
+  name              = var.cluster_name
+  ip_range          = var.network_cidr
+  delete_protection = var.protect
 }
 
 resource "hcloud_network_subnet" "nodes" {

@@ -109,6 +109,11 @@ Point DNS at that IP. Traefik serves a self-signed cert until you add TLS
 ## Operations
 
 - **SSH**: only over the VPN — `ssh root@10.0.1.11` (masters), `ssh root@10.0.1.2` (gateway).
+- **Protection**: the masters (etcd), the reserved gateway IP and the network have
+  Hetzner delete/rebuild protection (`protect = true`). The API refuses deletes even
+  from the console. A plan still *shows* the destroy; the apply fails. To replace or
+  destroy them on purpose: set `protect = false`, apply (in-place), do the change,
+  then set it back.
 - **Upgrading RKE2**: bump `rke2_version`. Masters ignore user_data changes (no
   accidental rebuilds), so upgrade them in place (e.g. system-upgrade-controller).
   New workers pick up the new version from the userData; existing ones are replaced
