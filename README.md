@@ -85,6 +85,27 @@ kubectl delete deployment inflate               # consolidation removes the work
 
 From outside the VPN only `udp/51820` on the gateway should answer.
 
+## Public ingress
+
+RKE2's bundled Traefik is exposed through a public Hetzner Load Balancer
+(lb11, ~€7.89/mo) that the hcloud CCM creates from the Traefik Service
+(`terraform/cluster/ingress.tf`). The LB reaches Traefik over the private
+network and uses PROXY protocol with `externalTrafficPolicy: Local`, so apps
+see real client IPs.
+
+```bash
+kubectl apply -f examples/whoami.yaml
+IP=$(kubectl -n kube-system get svc rke2-traefik -o jsonpath='{.status.loadBalancer.ingress[2].ip}')
+curl http://$IP/                     # echoes the request, incl. X-Real-Ip
+```
+
+Point DNS at that IP. Traefik serves a self-signed cert until you add TLS
+(e.g. cert-manager).
+
+> The ingress LB is created by the CCM, **not by Terraform**. Before destroying
+> the cluster, delete it (`kubectl -n kube-system delete svc rke2-traefik`, or
+> delete the `rke2-ingress` LB in the Hetzner console), or it keeps billing.
+
 ## Operations
 
 - **SSH**: only over the VPN — `ssh root@10.0.1.11` (masters), `ssh root@10.0.1.2` (gateway).

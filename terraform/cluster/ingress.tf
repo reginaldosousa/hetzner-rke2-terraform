@@ -12,7 +12,13 @@ resource "kubernetes_manifest" "traefik_config" {
     spec = {
       valuesContent = yamlencode({
         service = {
-          spec = { type = "LoadBalancer" }
+          spec = {
+            type = "LoadBalancer"
+            # Only nodes running a Traefik pod pass the LB health check, so
+            # requests never take an extra kube-proxy hop. That hop would
+            # SNAT the source, and Traefik would then distrust the PROXY header.
+            externalTrafficPolicy = "Local"
+          }
           annotations = {
             "load-balancer.hetzner.cloud/name"           = "${local.infra.cluster_name}-ingress"
             "load-balancer.hetzner.cloud/location"       = local.infra.location
