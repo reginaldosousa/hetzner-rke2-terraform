@@ -64,3 +64,8 @@ output "worker_user_data" {
     private_network_script = local.private_network_script
   })
 }
+
+output "network_cidr" {
+  description = "Private network range (e.g. trusted source of PROXY protocol from hcloud LBs)."
+  value       = var.network_cidr
+}
