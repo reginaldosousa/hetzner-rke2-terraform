@@ -64,9 +64,11 @@ Primeira vez ([ADR 0023](adr/0023-oidc-pocket-id.md)):
    `/setup`. Rode `apply` do `infra` e depois do `cluster`.
 2. Abra `https://auth.devcomm.com.br/setup` e crie o admin com uma passkey. Depois troque para
    `pocket_id_allowed_cidrs = []` e rode `apply` do `cluster` para deixar o Pocket ID público.
-3. No Pocket ID: crie o grupo `k8s-admins` e adicione os usuários. Crie o client OIDC `kubectl` como **public
-   client** (PKCE), com callbacks `http://localhost:8000` e `http://localhost:18000` e acesso restrito ao grupo.
-4. Coloque o client ID em `oidc_client_id`, rode `apply` do `infra` e `scripts/sync-masters.sh`.
+3. No Pocket ID, crie uma API key (*Settings → Admin → API Keys*, com validade) e coloque em
+   `terraform/identity/terraform.tfvars` (`pocket_id_api_token`), com os usuários em `users`. O `apply` do
+   `identity` cria o grupo `k8s-admins`, o client `kubectl` e as associações ([ADR 0024](adr/0024-identity-root-pocketid-provider.md)).
+4. Coloque `terraform -chdir=terraform/identity output -raw kubectl_client_id` em `oidc_client_id`, rode `apply`
+   do `infra` e `scripts/sync-masters.sh`.
 5. No laptop (`brew install kubelogin` ou `kubectl krew install oidc-login`):
 
 ```bash
@@ -78,7 +80,9 @@ kubectl config set-credentials oidc \
 kubectl --user=oidc auth whoami   # oidc:<sub>, grupos oidc:k8s-admins
 ```
 
-Acesso novo = adicionar ao grupo. Para revogar, tire o usuário do grupo ou desative-o; tokens já emitidos valem
+Acesso novo = usuário em `users` com o grupo, `apply` do `identity` e um link de acesso único (UI) para ele
+cadastrar a passkey. Para revogar, tire o grupo ou ponha `disabled = true` no `users` e rode o `apply` (desativar
+só pela UI é desfeito no próximo `apply`); tokens já emitidos valem
 até expirar. O `kubeconfig` admin do RKE2 continua sendo o break-glass e o que o `terraform/cluster` usa.
 
 ### Drift do gateway

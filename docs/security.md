@@ -28,6 +28,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Token do bot do Telegram / URL do dead man's switch | state do `cluster` → Secret `monitoring/alertmanager-receivers` | Alertmanager |
 | Credenciais R2 (Velero) | token criado pelo `cluster` → Secret `velero/velero-r2` | Velero; escopo só no bucket `rke2-velero` |
 | Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
+| API key do Pocket ID | `terraform/identity/terraform.tfvars` | operador; admin total das identidades, com validade, **nunca** vai para o cluster |
 | Token Cloudflare de provisionamento | `terraform.tfvars` do `cluster` (provider) | operador; cria buckets R2 e tokens, **nunca** vai para o cluster |
 
 O **state do Terraform contém todos esses segredos** e fica no R2, criptografado em repouso pela Cloudflare mas

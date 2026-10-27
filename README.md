@@ -49,8 +49,9 @@ flowchart TB
 | R2 buckets + scoped Cloudflare tokens, etcd-s3 Secret | `terraform/cluster/etcd-snapshots.tf`, `dns-token.tf`, `velero.tf` |
 | Monitoring, Velero | `terraform/cluster/monitoring.tf`, `velero.tf` |
 
-Two Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
-Kubernetes and therefore runs **over the VPN**.
+Three Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
+Kubernetes and therefore runs **over the VPN**; `identity` manages Pocket ID
+(groups, OIDC clients, users) through its public API.
 
 ## Prerequisites
 
