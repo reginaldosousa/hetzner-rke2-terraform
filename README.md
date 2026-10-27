@@ -138,6 +138,15 @@ Point DNS at that IP. Traefik serves a self-signed cert until you add TLS
   To use x86 workers instead, set `architectures`/`serverFamilies` in
   `terraform/cluster/charts/nodepools/values.yaml`.
 
+## CI
+
+`.github/workflows/terraform.yml` runs on every PR and on pushes to `main`. It
+checks fmt and validate for both roots (with the committed lock files, read-only),
+then runs tflint, trivy (HIGH/CRITICAL), `helm lint --strict` on the NodePool
+chart, and shellcheck. Tool versions are pinned in the workflow's `env:`, and
+actions are pinned to commit SHAs. CI never plans or applies against real
+infrastructure: applies run locally over the VPN from a reviewed plan.
+
 ## Security notes
 
 - Terraform state contains the RKE2 tokens, WireGuard private keys and the Hetzner
