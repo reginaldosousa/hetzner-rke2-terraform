@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Terraform for an RKE2 Kubernetes cluster on Hetzner Cloud. It has 3 Terraform-managed masters, workers provisioned by Karpenter (community provider `stubbi/karpenter-provider-hetzner`), a private network where no cluster node has a public IP, and a WireGuard gateway as the only public host. README.md has the bootstrap steps and the architecture diagram.
+Terraform for an RKE2 Kubernetes cluster on Hetzner Cloud. It has 3 Terraform-managed masters, workers provisioned by Karpenter (community provider `stubbi/karpenter-provider-hetzner`), a private network where no cluster node has a public IP, and a WireGuard gateway as the only public host. README.md has the bootstrap steps and the architecture diagram. `docs/` explains the stack and holds the ADRs (`docs/adr/`). A new architectural decision gets a new ADR, and a reversed one is marked superseded rather than edited.
 
 ## Commands
 

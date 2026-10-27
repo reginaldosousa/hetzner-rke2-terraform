@@ -10,6 +10,9 @@ RKE2 Kubernetes cluster on Hetzner Cloud:
 
 The git history builds the project one piece at a time — `git log --reverse -p` reads like a walkthrough.
 
+Detailed documentation (in Portuguese) lives in [`docs/`](docs/README.md): architecture, the reason
+for each piece of the stack, runbooks, security notes and [ADRs](docs/adr/README.md).
+
 ## Architecture
 
 ```
