@@ -17,7 +17,12 @@ frontend control_plane_${port}
   default_backend masters_${port}
 
 backend masters_${port}
-  default-server check inter 5s fall 2 rise 2
+  # HTTPS health check instead of a bare TCP connect, so a master whose port is
+  # open but whose server hangs is taken out. The apiserver has anonymous auth
+  # off, so its /readyz answers 401; the supervisor's /ping needs no auth.
+  option httpchk GET ${port == 6443 ? "/readyz" : "/ping"}
+  http-check expect ${port == 6443 ? "rstatus ^(200|401)$" : "status 200"}
+  default-server check check-ssl verify none inter 5s fall 2 rise 2
 %{ for i, ip in master_ips ~}
   server master-${i + 1} ${ip}:${port}
 %{ endfor ~}
