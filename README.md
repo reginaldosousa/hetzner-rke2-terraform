@@ -6,7 +6,8 @@ RKE2 Kubernetes cluster on Hetzner Cloud:
 - Worker nodes provisioned on demand by [Karpenter](https://karpenter.sh) using the
   community [Hetzner provider](https://github.com/stubbi/karpenter-provider-hetzner)
 - A private network — **no cluster node has a public IP**
-- A WireGuard gateway as the only public host (VPN entry + NAT for egress)
+- A gateway as the only public host: NAT for egress, and the VPN — Headscale (Tailscale clients,
+  login through Pocket ID) for daily use, static WireGuard as break-glass
 - Production basics: Pod Security `baseline`, pods blocked from the metadata service,
   etcd snapshots and Velero backups to Cloudflare R2, Prometheus with Telegram
   alerts and a dead man's switch, a two-worker floor across locations, and kured
@@ -21,9 +22,9 @@ for each piece of the stack, runbooks, security notes and [ADRs](docs/adr/README
 
 ```mermaid
 flowchart TB
-    laptop["laptop"] -- "WireGuard udp/51820" --> gw
+    laptop["laptop"] -- "Tailscale (Headscale, tcp/443 · udp/3478 · udp/41641)<br/>or WireGuard udp/51820" --> gw
     subgraph net["hcloud network 10.0.0.0/16 · subnet 10.0.1.0/24"]
-        gw["gateway 10.0.1.2<br/>reserved public IP · firewall + nftables: only 51820/udp<br/>wg0 10.200.0.1 · NAT · HAProxy :6443 / :9345"]
+        gw["gateway 10.0.1.2<br/>reserved public IP · firewall + nftables<br/>Headscale + subnet router · wg0 10.200.0.1 · NAT · HAProxy :6443 / :9345"]
         masters["master-1..3 · 10.0.1.11-13<br/>private only, spread placement group"]
         workers["Karpenter workers · 10.0.1.x<br/>private only, ≥ 1 in nbg1 and 1 in fsn1"]
     end

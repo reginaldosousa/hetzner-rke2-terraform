@@ -11,10 +11,10 @@ flowchart TB
         hc["healthchecks.io<br/>dead man's switch"]
         cf["Cloudflare DNS"]
     end
-    internet -- "udp/51820 WireGuard" --> gw
+    internet -- "Headscale tcp/443 · udp/3478 · udp/41641<br/>WireGuard udp/51820" --> gw
     internet -- "80/443" --> lb
     subgraph hcloud["Rede privada hcloud 10.0.0.0/16 · subnet 10.0.1.0/24"]
-        gw["gateway 10.0.1.2<br/>IP primário fixo<br/>WireGuard · NAT · HAProxy · nftables"]
+        gw["gateway 10.0.1.2<br/>IP primário fixo<br/>Headscale · Tailscale · WireGuard · NAT · HAProxy · nftables"]
         lb["Hetzner LB lb11 (rke2-ingress)<br/>criado pelo CCM, fora do Terraform"]
         masters["master-1..3 · 10.0.1.11-13<br/>rke2-server + etcd<br/>CCM · CSI · Karpenter"]
         workers["workers Karpenter (mín. 2: nbg1 e fsn1)<br/>rke2-agent · Traefik · apps<br/>Prometheus · Velero"]
@@ -28,8 +28,9 @@ flowchart TB
 
 Somente dois pontos recebem tráfego da internet:
 
-1. **Gateway**: o firewall da Hetzner e o nftables do próprio gateway aceitam da internet apenas `udp/51820`
-   (WireGuard). SSH e kubectl passam pelo túnel.
+1. **Gateway**: o firewall da Hetzner e o nftables do próprio gateway aceitam da internet o Headscale
+   (`tcp/443`, `udp/3478`, `udp/41641`) e o WireGuard (`udp/51820`). SSH e kubectl passam por um dos túneis
+   ([ADR 0025](adr/0025-headscale-oidc-vpn.md)).
 2. **Load Balancer de ingress**: criado pelo hcloud CCM a partir do Service do Traefik. Encaminha 80/443 para os
    workers pela rede privada.
 

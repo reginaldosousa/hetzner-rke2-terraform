@@ -5,6 +5,7 @@
 | Exposto | Protegido por |
 |---|---|
 | Gateway `udp/51820` | WireGuard: sem chave válida não há resposta. O nftables do gateway (policy drop) descarta o resto |
+| Gateway `tcp/443`, `udp/3478`, `udp/41641` | Headscale (controle, DERP, ACME), STUN e caminho direto do Tailscale. Login só pelo Pocket ID, grupo `vpn` ([ADR 0025](adr/0025-headscale-oidc-vpn.md)) |
 | LB de ingress `80/443` | Traefik; só serve o que existe como Ingress. HTTP vira 308 para HTTPS |
 | Pocket ID (`auth.devcomm.com.br`) | Login só por passkey; IP do operador (`pocket_id_allowed_cidrs`) até o `/setup` criar o primeiro admin ([ADR 0023](adr/0023-oidc-pocket-id.md)) |
 | Tudo o mais | Nada tem IP público. Da VPN só SSH e API do Kubernetes; etcd e kubelet só pela rede privada |
@@ -29,6 +30,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Credenciais R2 (Velero) | token criado pelo `cluster` → Secret `velero/velero-r2` | Velero; escopo só no bucket `rke2-velero` |
 | Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
 | API key do Pocket ID | `terraform/identity/terraform.tfvars` | operador; admin total das identidades, com validade, **nunca** vai para o cluster |
+| Secret do client OIDC do Headscale | state do `identity` → `terraform.tfvars` do `infra` → `/etc/headscale/oidc_client_secret` no gateway | Headscale; o `sync-gateway.sh` nunca mostra o conteúdo |
 | Token Cloudflare de provisionamento | `terraform.tfvars` do `cluster` (provider) | operador; cria buckets R2 e tokens, **nunca** vai para o cluster |
 
 O **state do Terraform contém todos esses segredos** e fica no R2, criptografado em repouso pela Cloudflare mas
@@ -45,6 +47,9 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
 - **Pod Security `baseline` por padrão** ([ADR 0018](adr/0018-pod-security-baseline.md)): fora do
   `kube-system`, nada de pods privilegiados, `hostPath` ou `hostNetwork`. `restricted` só gera aviso.
 - **Metadata service bloqueado para pods** ([ADR 0017](adr/0017-block-instance-metadata-for-pods.md)).
+- **VPN com identidade** ([ADR 0025](adr/0025-headscale-oidc-vpn.md)): Headscale com login no Pocket ID, só
+  para o grupo `vpn`, sessões de 30 dias. A tailnet tem o mesmo alcance dos clientes WireGuard (SSH e
+  apiserver), e dispositivos de usuários não se enxergam.
 - **Revogação de VPN fail-closed** ([ADR 0009](adr/0009-gateway-config-sync.md)): remover um peer sem conseguir
   aplicar no gateway faz o `apply` falhar.
 - **Host key fixada**: `sync-gateway.sh` envia a chave privada do WireGuard e só conecta com
@@ -79,6 +84,8 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
 
 - **Gateway é ponto único de falha** para VPN, egress e joins. Nós já no cluster seguem funcionando, porque
   falam direto com os masters.
+- **Login na VPN depende do Pocket ID, que roda no cluster.** Sessões abertas continuam até expirar; para o
+  resto, o WireGuard estático é o break-glass e precisa continuar existindo.
 - **Tokens no metadata service**: o user_data dos masters tem o token de server, e o dos workers tem o agent
   token. Pods comuns são bloqueados pelo tier `metadata-guard` do Calico
   ([ADR 0017](adr/0017-block-instance-metadata-for-pods.md)). Ainda leem: o `hcloud-csi` (exceção) e pods com

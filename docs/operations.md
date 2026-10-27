@@ -32,14 +32,35 @@ scripts/sync-masters.sh --dry-run           # drift da config do RKE2 nos master
 
 ## VPN
 
-### Adicionar um cliente
+Há duas VPNs para a mesma rede: a **tailnet (Headscale)**, de uso diário, com login no Pocket ID, e o
+**WireGuard estático**, break-glass e caminho dos applies ([ADR 0025](adr/0025-headscale-oidc-vpn.md)).
+As duas anunciam `10.0.0.0/16`: ligue uma de cada vez.
+
+### Tailnet (Headscale)
+```bash
+tailscale up --login-server https://vpn.devcomm.com.br --accept-routes   # abre o Pocket ID no navegador
+tailscale status                                                          # "gateway" deve aparecer
+```
+
+- **Dar acesso:** o usuário em `users` do `terraform/identity` com o grupo `vpn`, e `apply` do `identity`.
+- **Revogar:** tire o grupo `vpn` (bloqueia novos logins) e corte a sessão ativa no gateway:
+  `headscale nodes list` e `headscale nodes expire --identifier <id>`.
+- **Policy** (`templates/gateway/headscale-policy.hujson.tftpl`): o `sync-gateway.sh` a valida no Headscale em
+  execução e recarrega com SIGHUP. Config, secret ou versões mudadas rodam o instalador, que reinicia o serviço.
+- **Rebuild do gateway:** o banco do Headscale se perde; o `tailnet-join.service` registra o gateway de novo e os
+  usuários refazem o `tailscale up`.
+- **Primeira vez** (ordem): `headscale_hostname` no `infra` e `apply`; `apply` do `cluster` (registro DNS);
+  `apply` do `identity` (client OIDC); `headscale_oidc_client_id`/`_secret` no `infra` a partir de
+  `terraform -chdir=terraform/identity output` e `apply` do `infra`, com o WireGuard ligado.
+
+### WireGuard: adicionar um cliente
 1. Em `terraform/infra/terraform.tfvars`, adicione `vpn_clients = { laptop = 10, ci = 11 }`. O número é o host
    em `10.200.0.0/24` e nunca muda.
 2. `terraform apply`. O `terraform_data.gateway_sync` envia o novo `wg0.conf` e aplica com `wg syncconf`, sem
    rebuild e sem derrubar túneis.
 3. Entregue a configuração ao cliente: `terraform output -json vpn_client_configs | jq -r .ci`.
 
-### Remover / revogar
+### WireGuard: remover / revogar
 Remova a entrada e rode `apply`. O sync é **fail-closed**: se não conseguir enviar (VPN caída, configuração
 inválida), o apply falha e o próximo tenta de novo. Um peer revogado nunca continua com acesso em silêncio.
 

@@ -31,3 +31,4 @@ Para criar um ADR, copie [`template.md`](template.md) para o próximo número li
 | [0022](0022-velero-r2.md) | Backup de objetos e volumes com Velero no R2 | Aceito |
 | [0023](0023-oidc-pocket-id.md) | Login OIDC no kubectl com Pocket ID | Aceito |
 | [0024](0024-identity-root-pocketid-provider.md) | Root `identity` com o provider comunitário do Pocket ID | Aceito |
+| [0025](0025-headscale-oidc-vpn.md) | VPN com login OIDC: Headscale no gateway | Aceito |

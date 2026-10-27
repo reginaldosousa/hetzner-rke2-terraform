@@ -41,6 +41,13 @@ alternativas descartadas.
   novos são aplicados com `wg syncconf` sem derrubar túneis.
 - **ADR:** [0003](adr/0003-private-network-wireguard-gateway.md), [0009](adr/0009-gateway-config-sync.md)
 
+### Headscale + Tailscale
+- **Papel:** VPN de uso diário. O Headscale (no gateway) coordena a tailnet, com login no Pocket ID; o
+  tailscaled do gateway é o subnet router da rede privada. Os clientes usam o app oficial do Tailscale.
+- **Por quê:** dá identidade, expiração e revogação por grupo à VPN sem tirar nada da própria infraestrutura
+  (DERP embutido, sem relays de terceiros). Roda no gateway para não depender do cluster.
+- **ADR:** [0025](adr/0025-headscale-oidc-vpn.md)
+
 ### nftables
 - **Papel:** NAT (masquerade) do egress dos nós e firewall do gateway: a chain `input` só aceita WireGuard, SSH
   pelo túnel e HAProxy, e a `forward` limita a VPN a SSH e apiserver e impede a rede de abrir conexões para os
