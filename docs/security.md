@@ -6,7 +6,7 @@
 |---|---|
 | Gateway `udp/51820` | WireGuard: sem chave válida não há resposta |
 | LB de ingress `80/443` | Traefik; só serve o que existe como Ingress. HTTP vira 308 para HTTPS |
-| Tudo o mais | Nada tem IP público. SSH, API do Kubernetes e etcd só são acessíveis pela rede privada/VPN |
+| Tudo o mais | Nada tem IP público. Da VPN só SSH e API do Kubernetes; etcd e kubelet só pela rede privada |
 
 Como a Hetzner não permite firewall em servidores só com rede privada, o isolamento dos masters e workers vem da
 ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-gateway.md)).
@@ -45,7 +45,8 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   use `10.0.x.x`, ele recusa em vez de entregar a chave.
 - **nftables no gateway** além do firewall da Hetzner: a chain `input` (policy drop) só aceita WireGuard, SSH
   vindo do túnel e HAProxy (`6443`/`9345`) vindo da rede privada ou da VPN. A chain `forward` deixa clientes VPN
-  abrirem conexões para a rede, mas não o contrário: um pod comprometido não alcança o laptop de um operador.
+  abrirem conexões para a rede só em SSH (`22`) e apiserver (`6443`), mais ICMP; etcd, kubelet e o resto ficam
+  fechados para eles. No sentido contrário nada passa: um pod comprometido não alcança o laptop de um operador.
 - **PROXY protocol restrito**: o Traefik só aceita o cabeçalho vindo de `network_cidr`, para que ninguém forje
   o IP de origem.
 - **external-dns com escopo**: `domainFilters` é obrigatório (uma lista vazia seria rejeitada), e o registro

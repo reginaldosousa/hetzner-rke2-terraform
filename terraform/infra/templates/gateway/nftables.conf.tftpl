@@ -25,7 +25,11 @@ table inet filter {
   chain forward {
     type filter hook forward priority 0; policy drop;
     ct state established,related accept
-    iifname "wg0" ip daddr ${network_cidr} accept
+    # Operators reach nodes only over SSH and the apiserver; kubectl
+    # exec/logs/port-forward all go through the apiserver. etcd, the kubelet
+    # and everything else stay closed to VPN clients.
+    iifname "wg0" ip daddr ${network_cidr} tcp dport { 22, 6443 } accept
+    iifname "wg0" ip daddr ${network_cidr} meta l4proto icmp accept
     # Internet egress only: nodes (and the pods behind them) must not open
     # connections to VPN clients, i.e. to operators' machines.
     ip saddr ${network_cidr} ip daddr != ${vpn_cidr} accept
