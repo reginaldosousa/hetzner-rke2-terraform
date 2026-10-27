@@ -40,7 +40,8 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - http:
+    - host: whoami.devcomm.com.br
+      http:
         paths:
           - path: /
             pathType: Prefix
