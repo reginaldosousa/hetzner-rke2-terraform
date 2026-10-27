@@ -20,7 +20,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | RKE2 `agent-token` | user_data dos workers (Secret `karpenter-worker-bootstrap`) | workers. Só permite entrar como agent |
 | Chaves WireGuard | state do `infra`, `/etc/wireguard/wg0.conf`, `wg/` local | gateway e clientes |
 | Host key SSH do gateway | state do `infra` (`tls_private_key.gateway_host`) | gateway; output `gateway_known_hosts` para fixar |
-| Token Cloudflare | state do `cluster` → Secrets do external-dns e do cert-manager | escopo Zone:Read + DNS:Edit nas zonas gerenciadas |
+| Token Cloudflare (DNS) | token criado pelo `cluster` (`dns-token.tf`) → Secrets do external-dns e do cert-manager | escopo Zone Read + DNS Write só nas zonas de `external_dns_domains` |
 | Credenciais R2 (state) | perfil AWS `r2` local | operador; **fora do CI** |
 | Credenciais R2 (snapshots do etcd) | token criado pelo `cluster` → Secret `kube-system/rke2-etcd-snapshot-s3` | RKE2 nos masters; escopo só no bucket `rke2-etcd-snapshots` |
 | Token Cloudflare de provisionamento | `terraform.tfvars` do `cluster` (provider) | operador; cria buckets R2 e tokens, **nunca** vai para o cluster |

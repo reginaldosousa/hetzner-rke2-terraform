@@ -124,7 +124,7 @@ curl --resolve whoami.devcomm.com.br:80:$IP http://whoami.devcomm.com.br/
 
 cert-manager (`terraform/cluster/cert-manager.tf`) provides two ClusterIssuers,
 `letsencrypt-staging` and `letsencrypt-prod`, that solve DNS-01 through
-Cloudflare with the same `cloudflare_api_token`, for the zones in
+Cloudflare with the same Terraform-managed DNS token as external-dns, for the zones in
 `external_dns_domains`. Set `acme_email` in `terraform.tfvars`. To get a
 certificate, annotate the Ingress and add a `tls` block:
 
@@ -148,8 +148,9 @@ Hosts without a certificate get Traefik's self-signed default.
 
 external-dns (`terraform/cluster/external-dns.tf`) creates A/AAAA records for
 every Ingress host inside `external_dns_domains`, pointing at the LB's public
-IPs. Set `cloudflare_api_token` (Zone:Read + DNS:Edit on those zones only) and
-`external_dns_domains` in `terraform/cluster/terraform.tfvars`.
+IPs. Terraform creates its Cloudflare token (`terraform/cluster/dns-token.tf`,
+Zone Read + DNS Write on those zones only); set `external_dns_domains` in
+`terraform/cluster/terraform.tfvars`.
 
 It runs with `policy: sync`: deleting an Ingress deletes its records. TXT
 ownership records (owner = cluster name) keep it from touching records it did

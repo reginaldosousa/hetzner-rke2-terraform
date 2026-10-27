@@ -28,12 +28,6 @@ variable "external_dns_chart_version" {
   default     = "1.23.0"
 }
 
-variable "cloudflare_api_token" {
-  description = "Cloudflare API token for external-dns (Zone:Read + DNS:Edit on the managed zones)."
-  type        = string
-  sensitive   = true
-}
-
 variable "external_dns_domains" {
   description = "Cloudflare zones external-dns may manage, e.g. [\"example.com\"]."
   type        = list(string)
@@ -62,7 +56,7 @@ variable "cloudflare_account_id" {
 }
 
 variable "cloudflare_provisioning_api_token" {
-  description = "Cloudflare token used only by Terraform: Account > Workers R2 Storage: Edit and Account > Account API Tokens: Edit. Never stored in the cluster."
+  description = "Cloudflare token used only by Terraform: Account > Workers R2 Storage: Edit and Account > Account API Tokens: Edit, Zone > Zone: Read on external_dns_domains. Never stored in the cluster."
   type        = string
   sensitive   = true
 }

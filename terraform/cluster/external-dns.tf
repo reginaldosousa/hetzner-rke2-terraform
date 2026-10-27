@@ -1,5 +1,4 @@
-# Cloudflare API token for external-dns. Scope it to Zone:Read + DNS:Edit on
-# the zones in var.external_dns_domains only.
+# Cloudflare token for external-dns (see dns-token.tf).
 resource "kubernetes_secret_v1" "cloudflare" {
   metadata {
     name      = "external-dns-cloudflare"
@@ -7,7 +6,7 @@ resource "kubernetes_secret_v1" "cloudflare" {
   }
 
   data = {
-    apiToken = var.cloudflare_api_token
+    apiToken = cloudflare_account_token.dns.value
   }
 }
 

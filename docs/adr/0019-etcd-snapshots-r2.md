@@ -23,7 +23,8 @@ etcd, perde o cluster sem cópia para restaurar. O R2 já guarda o state do Terr
   credenciais S3 são derivadas do token (id e sha256 do valor) e vão direto para o Secret. O bucket tem
   `prevent_destroy`.
 - O provider usa `cloudflare_provisioning_api_token` (R2 Storage: Edit e Account API Tokens: Edit), que fica só
-  no `terraform.tfvars` do operador e nunca entra no cluster.
+  no `terraform.tfvars` do operador e nunca entra no cluster. O mesmo provider cria o token de DNS do
+  [ADR 0012](0012-dns-tls-cloudflare.md) (`dns-token.tf`), que antes era criado à mão.
 
 ## Alternativas consideradas
 

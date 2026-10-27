@@ -13,7 +13,7 @@ resource "kubernetes_secret_v1" "cert_manager_cloudflare" {
   }
 
   data = {
-    apiToken = var.cloudflare_api_token
+    apiToken = cloudflare_account_token.dns.value
   }
 }
 
