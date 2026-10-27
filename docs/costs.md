@@ -47,7 +47,7 @@ enquanto não há carga.
 
 | Serviço | Uso | Custo |
 |---|---|---|
-| Cloudflare R2 | state e backups dele, snapshots do etcd (28 por master) e backups do Velero (7 dias) | US$ 0 dentro do free tier (10 GB, 1M operações classe A, 10M classe B, sem egress); acima de 10 GB, US$ 0,015/GB/mês |
+| Cloudflare R2 | state e backups dele, snapshots do etcd (28 por master), backups do Velero (7 dias) e réplica do banco do Headscale | US$ 0 dentro do free tier (10 GB, 1M operações classe A, 10M classe B, sem egress); acima de 10 GB, US$ 0,015/GB/mês |
 | Telegram | alertas do Alertmanager | gratuito |
 | healthchecks.io | dead man's switch do Watchdog | US$ 0 no plano Hobbyist |
 | Cloudflare DNS | zonas gerenciadas pelo external-dns | US$ 0 no plano Free |

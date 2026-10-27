@@ -31,11 +31,13 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
 | API key do Pocket ID | `terraform/identity/terraform.tfvars` | operador; admin total das identidades, com validade, **nunca** vai para o cluster |
 | Secret do client OIDC do Headscale | state do `identity` → `terraform.tfvars` do `infra` → `/etc/headscale/oidc_client_secret` no gateway | Headscale; o `sync-gateway.sh` nunca mostra o conteúdo |
+| Chaves Noise e DERP do Headscale | state do `infra` (`random_bytes`) → `/var/lib/headscale/*.key` no gateway | Headscale; o `sync-gateway.sh` nunca mostra o conteúdo nem troca uma chave viva diferente ([ADR 0026](adr/0026-gateway-fast-recovery.md)) |
+| Credenciais R2 (banco do Headscale) | token criado pelo `cluster` → `headscale-backup.auto.tfvars.json` do `infra` → `/etc/headscale/litestream.yml` no gateway | Litestream; escopo só no bucket `rke2-headscale` |
 | Token Cloudflare de provisionamento | `terraform.tfvars` do `cluster` (provider) | operador; cria buckets R2 e tokens, **nunca** vai para o cluster |
 
 O **state do Terraform contém todos esses segredos** e fica no R2, criptografado em repouso pela Cloudflare mas
 sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso ele tem escopo restrito ao bucket.
-`kubeconfig`, `master_known_hosts`, `wg/`, `*.tfvars` e `state-backups/` são ignorados pelo git.
+`kubeconfig`, `master_known_hosts`, `wg/`, `*.tfvars`, `*.tfvars.json` e `state-backups/` são ignorados pelo git.
 
 ## Decisões de defesa
 

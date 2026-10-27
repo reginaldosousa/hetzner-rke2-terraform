@@ -47,8 +47,25 @@ tailscale status                                                          # "gat
   `headscale nodes list` e `headscale nodes expire --identifier <id>`.
 - **Policy** (`templates/gateway/headscale-policy.hujson.tftpl`): o `sync-gateway.sh` a valida no Headscale em
   execução e recarrega com SIGHUP. Config, secret ou versões mudadas rodam o instalador, que reinicia o serviço.
-- **Rebuild do gateway:** o banco do Headscale se perde; o `tailnet-join.service` registra o gateway de novo e os
-  usuários refazem o `tailscale up`.
+- **Rebuild do gateway:** chaves e banco do Headscale voltam (Terraform e R2, [ADR 0026](adr/0026-gateway-fast-recovery.md));
+  ninguém refaz o `tailscale up`. Veja [Rebuild do gateway](#rebuild-do-gateway).
+- **Backup do banco** (Litestream → R2, uma vez, depois do `apply` do `cluster` que cria o bucket):
+  ```bash
+  # 1. As chaves vivas do Headscale para o state (a VPN precisa estar de pé). Sem isso o
+  #    sync-gateway.sh recusa trocar as chaves e o apply falha.
+  kh=$(mktemp); terraform -chdir=terraform/infra output -raw gateway_known_hosts > "$kh"
+  for k in noise:noise_private derp:derp_server_private; do
+    b64=$(ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$kh" root@10.0.1.2 \
+      "cat /var/lib/headscale/${k#*:}.key" | sed 's/^privkey://' | xxd -r -p | base64)
+    terraform -chdir=terraform/infra import "random_bytes.headscale_${k%%:*}_key" "$b64" >/dev/null && echo "imported $k"
+  done
+  # 2. Credenciais do bucket para o infra (arquivo ignorado pelo git) e apply.
+  terraform -chdir=terraform/cluster output -json headscale_backup \
+    | jq '{headscale_backup: .}' > terraform/infra/headscale-backup.auto.tfvars.json
+  terraform -chdir=terraform/infra apply
+  ```
+  O instalador não acha cópia no R2, mantém o banco local e liga o `headscale-backup.service`. Confira no gateway:
+  `systemctl status headscale-backup` e `litestream ltx -config /etc/headscale/litestream.yml /var/lib/headscale/db.sqlite`.
 - **Primeira vez** (ordem): `headscale_hostname` no `infra` e `apply`; `apply` do `cluster` (registro DNS);
   `apply` do `identity` (client OIDC); `headscale_oidc_client_id`/`_secret` no `infra` a partir de
   `terraform -chdir=terraform/identity output` e `apply` do `infra`, com o WireGuard ligado.
@@ -154,9 +171,20 @@ scripts recusam a conexão até isso). Se o IP já estiver ocupado, o apply falh
 terraform -chdir=terraform/infra apply -replace=hcloud_server.gateway
 ```
 
-O IP público é mantido (IP primário). O cloud-init reinstala os arquivos e a host key fixada, e o sync roda
-porque o ID do servidor mudou. Enquanto ele sobe, os nós ficam sem egress e kubectl e joins ficam indisponíveis,
-mas os nós já no cluster continuam falando com os masters.
+O IP público é mantido (IP primário). O cloud-init reinstala os arquivos, a host key fixada e as chaves do
+Headscale, e o instalador restaura o banco do Headscale do R2 antes de subi-lo ([ADR 0026](adr/0026-gateway-fast-recovery.md)).
+O sync roda porque o ID do servidor mudou: o WireGuard estático volta sozinho (mesma chave e mesmo IP), então
+deixe-o ligado durante o apply. Enquanto o gateway sobe (5 a 10 minutos), os nós ficam sem egress e kubectl e
+joins ficam indisponíveis, mas os nós já no cluster continuam falando com os masters. O dead man's switch avisa
+quando o gateway cai, porque o Watchdog do Alertmanager sai por ele.
+
+Depois do rebuild, no gateway:
+```bash
+grep -i "restored headscale" /var/log/cloud-init-output.log           # restore do R2 aconteceu
+headscale nodes list                                                 # o "gateway" antigo aparece offline
+headscale nodes delete --identifier <id do antigo>
+```
+O certificado TLS é reemitido pelo ACME; o `tailnet-join.service` registra o gateway novo.
 
 ## State
 

@@ -112,7 +112,7 @@ After step 4 the CCM initialises the masters (`spec.providerID: hcloud://…`) a
 Karpenter starts serving pending pods.
 
 Identity and the daily VPN come after that (details in docs/operations.md and
-ADRs 0023–0025):
+ADRs 0023–0026):
 
 ```bash
 # 5. Pocket ID: keep pocket_id_allowed_cidrs = ["<your IP>/32"] until you create the
@@ -122,6 +122,9 @@ ADRs 0023–0025):
 # 7. terraform/infra: set oidc_client_id and headscale_* from
 #    `terraform -chdir=terraform/identity output`, apply, then scripts/sync-masters.sh.
 #    (headscale_hostname first needs one infra + cluster apply for its DNS record.)
+# 8. Headscale's database backup to R2 (survives a gateway rebuild, ADR 0026):
+#    import its live keys, then headscale_backup from `terraform -chdir=terraform/cluster
+#    output -json headscale_backup` (docs/operations.md, "Backup do banco").
 ```
 
 ## Verify
@@ -241,7 +244,8 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
   `scripts/sync-masters.sh`: it pushes them and restarts one master at a time.
 - **Monitoring**: Grafana and Prometheus have no Ingress; use
   `kubectl -n monitoring port-forward` over the VPN (see docs/operations.md).
-- **Backups**: etcd snapshots every 6 h and Velero daily, 7 days each, in R2.
+- **Backups**: etcd snapshots every 6 h and Velero daily, 7 days each, in R2, plus
+  Headscale's database streamed there by Litestream (ADR 0026).
   Restore runbooks are in docs/operations.md.
 - **Gateway config drift**: `scripts/sync-gateway.sh --dry-run` diffs the live
   gateway against Terraform (private keys redacted). A deliberate rebuild

@@ -49,6 +49,12 @@ alternativas descartadas.
   (DERP embutido, sem relays de terceiros). Roda no gateway para não depender do cluster.
 - **ADR:** [0025](adr/0025-headscale-oidc-vpn.md)
 
+### Litestream
+- **Papel:** replica continuamente o SQLite do Headscale para o bucket R2 `rke2-headscale`; o gateway recriado o
+  restaura antes de subir o Headscale.
+- **Por quê:** torna o gateway descartável sem perder a tailnet, por menos do que um segundo gateway em HA.
+- **ADR:** [0026](adr/0026-gateway-fast-recovery.md)
+
 ### nftables
 - **Papel:** NAT (masquerade) do egress dos nós e firewall do gateway: a chain `input` só aceita WireGuard, SSH
   pelo túnel e HAProxy, e a `forward` limita a VPN a SSH e apiserver e impede a rede de abrir conexões para os
