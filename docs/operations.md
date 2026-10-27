@@ -88,7 +88,8 @@ kubectl -n kube-system scale deploy karpenter-karpenter-provider-hetzner --repli
 kubectl -n kube-system scale deploy karpenter-karpenter-provider-hetzner --replicas=1
 ```
 
-Se o IP já estiver ocupado, o apply falha (não sobe com outro IP); drene e apague o worker que o pegou.
+Depois, atualize as host keys fixadas: `scripts/pin-master-host-keys.sh` (o master novo tem chave nova, e os
+scripts recusam a conexão até isso). Se o IP já estiver ocupado, o apply falha (não sobe com outro IP); drene e apague o worker que o pegou.
 
 ## Rebuild do gateway
 

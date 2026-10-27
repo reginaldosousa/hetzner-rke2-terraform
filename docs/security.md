@@ -42,7 +42,9 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   aplicar no gateway faz o `apply` falhar.
 - **Host key fixada**: `sync-gateway.sh` envia a chave privada do WireGuard e só conecta com
   `StrictHostKeyChecking=yes` contra a chave conhecida, nunca trust-on-first-use. Numa LAN estranha que também
-  use `10.0.x.x`, ele recusa em vez de entregar a chave.
+  use `10.0.x.x`, ele recusa em vez de entregar a chave. As host keys dos masters são lidas **pelo gateway**
+  (`pin-master-host-keys.sh`, `ssh-keyscan` na rede privada) para `master_known_hosts`, e `get-kubeconfig.sh` e
+  `sync-masters.sh` também usam `StrictHostKeyChecking=yes`. Depois de trocar um master, rode o pin de novo.
 - **nftables no gateway** além do firewall da Hetzner: a chain `input` (policy drop) só aceita WireGuard, SSH
   vindo do túnel e HAProxy (`6443`/`9345`) vindo da rede privada ou da VPN. A chain `forward` deixa clientes VPN
   abrirem conexões para a rede só em SSH (`22`) e apiserver (`6443`), mais ICMP; etcd, kubelet e o resto ficam

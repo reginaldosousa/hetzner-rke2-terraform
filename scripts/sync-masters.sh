@@ -25,13 +25,14 @@ local_dir="$(mktemp -d)"
 trap 'rm -rf "$local_dir"' EXIT
 chmod 700 "$local_dir"
 
-# These files hold no secrets (the S3 credentials live in a Kubernetes Secret),
-# so unlike sync-gateway.sh this trusts a master's host key on first use, as
-# get-kubeconfig.sh does.
+# Host keys come from pin-master-host-keys.sh (read through the pinned gateway).
+known_hosts="$repo_root/master_known_hosts"
+[ -s "$known_hosts" ] || "$repo_root/scripts/pin-master-host-keys.sh"
 ssh_m() {
   local ip="$1"
   shift
-  ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new "root@$ip" "$@"
+  ssh -o BatchMode=yes -o ConnectTimeout=10 \
+    -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts" "root@$ip" "$@"
 }
 
 paths="$(jq -r 'keys[]' <<<"$files_json")"

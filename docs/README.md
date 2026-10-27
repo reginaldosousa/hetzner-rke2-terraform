@@ -24,7 +24,7 @@ terraform/infra/      root 1: só fala com a API da Hetzner (rede, gateway, mast
 terraform/cluster/    root 2: só fala com o Kubernetes, via VPN
   charts/nodepools/   HCloudNodeClass + NodePool do Karpenter (chart local)
   charts/cluster-issuers/  ClusterIssuers do cert-manager (chart local)
-scripts/              get-kubeconfig, sync-gateway, backup-state
+scripts/              get-kubeconfig, pin-master-host-keys, sync-gateway, sync-masters, backup-state
 examples/whoami.yaml  smoke test de ingress + DNS + TLS
 .github/workflows/    CI estático (fmt, validate, tflint, trivy, helm lint, shellcheck)
 ```

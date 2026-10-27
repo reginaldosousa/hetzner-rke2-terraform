@@ -22,8 +22,8 @@ mudança de configuração do RKE2 no cloud-init só valeria para masters novos.
   cloud-init os grava em masters novos, e `scripts/sync-masters.sh` os envia aos existentes, reiniciando o
   `rke2-server` **um master por vez**. O script espera `/readyz` (que inclui o etcd local) antes de passar ao
   próximo e para no primeiro que não voltar.
-- Esses arquivos não têm segredos, e o script aceita a host key do master no primeiro uso, como o
-  `get-kubeconfig.sh`.
+- Esses arquivos não têm segredos. O script conecta só com as host keys de `master_known_hosts`, lidas pelo
+  gateway (`pin-master-host-keys.sh`).
 
 ## Alternativas consideradas
 

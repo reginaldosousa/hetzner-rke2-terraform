@@ -9,6 +9,7 @@ crash.log
 
 # Secrets / generated access files
 kubeconfig
+master_known_hosts
 *.kubeconfig
 wg/
 *.conf

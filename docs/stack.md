@@ -146,6 +146,9 @@ alternativas descartadas.
 
 ### Scripts shell (`scripts/`)
 - `get-kubeconfig.sh`: busca o `rke2.yaml` do master-1 pela VPN e reescreve o endpoint para o HAProxy.
+- `pin-master-host-keys.sh`: grava as host keys dos masters, lidas pelo gateway, em `master_known_hosts`.
+- `sync-masters.sh`: envia os drop-ins do RKE2 e reinicia os masters um por vez
+  ([ADR 0018](adr/0018-pod-security-baseline.md)).
 - `sync-gateway.sh`: diff, validação e ativação in-place da configuração do gateway, com host key fixada.
   [ADR 0009](adr/0009-gateway-config-sync.md)
 - `backup-state.sh`: guarda cópias locais dos states (mantém as 30 mais recentes).

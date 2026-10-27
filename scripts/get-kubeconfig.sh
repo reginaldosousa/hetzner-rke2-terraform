@@ -10,14 +10,21 @@ out="$repo_root/kubeconfig"
 master_ip="$(terraform -chdir="$infra" output -json master_ips | jq -r '.[0]')"
 cp_ip="$(terraform -chdir="$infra" output -raw control_plane_ip)"
 
+# Host keys come from pin-master-host-keys.sh (read through the pinned gateway).
+known_hosts="$repo_root/master_known_hosts"
+[ -s "$known_hosts" ] || "$repo_root/scripts/pin-master-host-keys.sh"
+ssh_m() {
+  ssh -o BatchMode=yes -o ConnectTimeout=5 \
+    -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts" "$@"
+}
+
 # RKE2 writes the kubeconfig a minute or two after first boot.
-until ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "root@$master_ip" \
-  test -f /etc/rancher/rke2/rke2.yaml; do
+until ssh_m "root@$master_ip" test -f /etc/rancher/rke2/rke2.yaml; do
   echo "waiting for RKE2 on $master_ip ..."
   sleep 10
 done
 
-ssh "root@$master_ip" cat /etc/rancher/rke2/rke2.yaml \
+ssh_m "root@$master_ip" cat /etc/rancher/rke2/rke2.yaml \
   | sed "s#https://127.0.0.1:6443#https://$cp_ip:6443#" > "$out"
 chmod 600 "$out"
 
