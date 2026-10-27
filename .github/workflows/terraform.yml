@@ -66,8 +66,8 @@ jobs:
         with:
           version: ${{ env.HELM_VERSION }}
 
-      - name: helm lint (Karpenter NodeClass/NodePool chart)
-        run: helm lint --strict terraform/cluster/charts/nodepools
+      - name: helm lint (local charts)
+        run: helm lint --strict terraform/cluster/charts/*
 
       - name: shellcheck
         run: shellcheck scripts/*.sh

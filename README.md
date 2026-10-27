@@ -30,7 +30,7 @@ laptop ──WireGuard udp/51820──► gateway  (reserved public IP; firewall
 | Masters, CCM + CSI | `terraform/infra/masters.tf`, `templates/master-cloud-init.yaml.tftpl` |
 | Default route for private-only servers | `templates/private-network.sh.tftpl` |
 | Worker bootstrap (Karpenter userData) | `templates/worker-userdata.yaml.tftpl` |
-| Karpenter, NodeClass, NodePool, Traefik LB, external-dns | `terraform/cluster/` |
+| Karpenter, NodeClass, NodePool, Traefik LB, external-dns, cert-manager | `terraform/cluster/` |
 
 Two Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
 Kubernetes and therefore runs **over the VPN**.
@@ -110,7 +110,29 @@ IP=$(kubectl -n kube-system get svc rke2-traefik -o jsonpath='{.status.loadBalan
 curl --resolve whoami.devcomm.com.br:80:$IP http://whoami.devcomm.com.br/
 ```
 
-Traefik serves a self-signed cert until you add TLS (e.g. cert-manager).
+### TLS (cert-manager → Let's Encrypt, DNS-01 on Cloudflare)
+
+cert-manager (`terraform/cluster/cert-manager.tf`) provides two ClusterIssuers,
+`letsencrypt-staging` and `letsencrypt-prod`, that solve DNS-01 through
+Cloudflare with the same `cloudflare_api_token`, for the zones in
+`external_dns_domains`. Set `acme_email` in `terraform.tfvars`. To get a
+certificate, annotate the Ingress and add a `tls` block:
+
+```yaml
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod   # try staging first
+spec:
+  tls:
+    - hosts: [app.example.com]
+      secretName: app-tls
+```
+
+```bash
+kubectl get certificate -A                        # READY=True once issued
+```
+
+Hosts without a certificate get Traefik's self-signed default.
 
 ### DNS (external-dns → Cloudflare)
 

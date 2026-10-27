@@ -43,3 +43,14 @@ variable "external_dns_domains" {
     error_message = "List at least one zone; an empty filter would let external-dns touch every zone the token can reach."
   }
 }
+
+variable "cert_manager_chart_version" {
+  description = "jetstack cert-manager chart version."
+  type        = string
+  default     = "v1.21.3"
+}
+
+variable "acme_email" {
+  description = "Contact email for the Let's Encrypt ACME account (expiry and policy notices)."
+  type        = string
+}

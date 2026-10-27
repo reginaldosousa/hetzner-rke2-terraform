@@ -1,2 +1,3 @@
 cloudflare_api_token = "..." # Zone:Read + DNS:Edit, limited to the zones below
 external_dns_domains = ["example.com"]
+acme_email           = "ops@example.com"

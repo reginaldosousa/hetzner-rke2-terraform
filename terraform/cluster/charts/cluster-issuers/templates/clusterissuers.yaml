@@ -1,0 +1,23 @@
+{{- $issuers := dict
+  "letsencrypt-staging" "https://acme-staging-v02.api.letsencrypt.org/directory"
+  "letsencrypt-prod" "https://acme-v02.api.letsencrypt.org/directory" }}
+{{- range $name, $server := $issuers }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ $name }}
+spec:
+  acme:
+    server: {{ $server }}
+    email: {{ required "email is required" $.Values.email | quote }}
+    privateKeySecretRef:
+      name: {{ $name }}-account-key
+    solvers:
+      - selector:
+          dnsZones: {{ toJson $.Values.dnsZones }}
+        dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              {{- toYaml $.Values.apiTokenSecret | nindent 14 }}
+{{- end }}

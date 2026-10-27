@@ -1,0 +1,7 @@
+# Filled in by terraform/cluster/cert-manager.tf.
+email: ops@example.com
+# Zones the issuers may solve DNS-01 for (same as external-dns).
+dnsZones: [example.com]
+apiTokenSecret:
+  name: cloudflare-api-token
+  key: apiToken
