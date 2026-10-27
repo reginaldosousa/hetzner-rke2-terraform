@@ -84,7 +84,10 @@ resource "kubernetes_deployment_v1" "worker_placeholder" {
             limits   = { memory = "16Mi" }
           }
 
+          # Set here too: the provider writes runAsNonRoot=false on the
+          # container when unset, which overrides the pod-level true.
           security_context {
+            run_as_non_root            = true
             allow_privilege_escalation = false
             read_only_root_filesystem  = true
             capabilities {
