@@ -37,8 +37,16 @@ Kubernetes and therefore runs **over the VPN**.
 
 ## Prerequisites
 
-`terraform` ≥ 1.6, `wireguard-tools` (or the WireGuard app), `jq`, `kubectl`, `helm`,
-a Hetzner Cloud project and a **read/write** API token.
+`terraform` ≥ 1.10, `wireguard-tools` (or the WireGuard app), `jq`, `kubectl`, `helm`,
+`aws` CLI, a Hetzner Cloud project and a **read/write** API token.
+
+**Remote state** lives in the Cloudflare R2 bucket `rke2-tfstate` (S3 backend,
+locking via `use_lockfile`; see `terraform/*/backend.tf`). Create an R2 API token
+with **Object Read & Write scoped to that bucket only**, then:
+
+```bash
+aws configure --profile r2     # access key + secret of the R2 token, region "auto"
+```
 
 ## Bootstrap
 
@@ -149,8 +157,13 @@ infrastructure: applies run locally over the VPN from a reviewed plan.
 
 ## Security notes
 
-- Terraform state contains the RKE2 tokens, WireGuard private keys and the Hetzner
-  token. It is git-ignored; move it to an encrypted remote backend before sharing.
+- Terraform state contains the RKE2 tokens, WireGuard and SSH host private keys
+  and the Hetzner token. It lives in R2 (encrypted at rest by Cloudflare, but not
+  client-side encrypted), so **anyone with the R2 token can read every secret**:
+  keep the token scoped to the bucket and out of CI.
+- **R2 has no object versioning.** Run `scripts/backup-state.sh` after each apply;
+  it keeps the last 30 copies of each state in `state-backups/` (git-ignored).
+  Restore with `terraform state push state-backups/<root>/<file>.tfstate`.
 - Workers join with a separate RKE2 **agent token**; the server token never leaves
   the masters. The Hetzner API token is never put in user_data.
 - Worker userData (with the agent token) is still readable from the Hetzner metadata
