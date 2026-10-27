@@ -38,3 +38,7 @@ Os dois roots usam o backend `s3` apontando para o bucket R2 `rke2-tfstate` (`in
   todos os segredos.
 - O backup é manual. Se ninguém rodar o script depois do apply, um state sobrescrito não tem como voltar.
 - O endpoint do R2 (ID da conta) aparece em `backend.tf` e em `terraform/cluster/main.tf`.
+
+## Atualizações
+- **2026-10-27:** `scripts/backup-state.sh` também envia cada cópia para `rke2-tfstate/backups/<root>/`, com a
+  mesma retenção, para que um state sobrescrito seja recuperável sem o laptop do operador.

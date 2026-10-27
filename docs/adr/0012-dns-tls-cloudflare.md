@@ -37,3 +37,8 @@ aplicação não escala e diverge do estado do cluster.
 - Apagar um Ingress apaga os registros DNS dele.
 - O token Cloudflare fica no state do `cluster` e em dois Secrets.
 - Testar primeiro com staging evita os rate limits de produção do Let's Encrypt.
+
+## Atualizações
+- **2026-10-27:** O token Cloudflare não é mais criado à mão: `terraform/cluster/dns-token.tf` cria um token de
+  conta com Zone Read + DNS Write só nas zonas de `external_dns_domains`, usando um token de provisionamento que
+  nunca entra no cluster ([0019](0019-etcd-snapshots-r2.md)).

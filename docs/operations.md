@@ -9,8 +9,15 @@ Runbooks do dia a dia. Todos os comandos que tocam o cluster ou o gateway exigem
 sudo wg-quick up wg/laptop.conf             # ou o app WireGuard
 terraform -chdir=terraform/infra plan -out=tfplan
 terraform -chdir=terraform/infra apply tfplan
-scripts/backup-state.sh                     # R2 não tem versionamento
+scripts/sync-masters.sh --dry-run           # se mudou algo em templates/master/: rode sem --dry-run
+terraform -chdir=terraform/cluster plan -out=tfplan
+terraform -chdir=terraform/cluster apply tfplan
+scripts/backup-state.sh                     # R2 não tem versionamento; copia também para o bucket
 ```
+
+Se um apply for interrompido (Ctrl-C, terminal fechado), o lock pode ficar no R2. Confirme que nenhum
+`terraform` está rodando (`ps -ax | grep terraform`) antes de liberar com
+`terraform -chdir=terraform/<root> force-unlock <ID do erro>`.
 
 Validação estática antes de commitar:
 
@@ -187,4 +194,10 @@ kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090    
 | NodeClaim não cria servidor e o log mostra tipo indisponível | `cax` esgotado nas localizações; ver [costs.md](costs.md#disponibilidade-e-risco-de-custo-2026-10-27) |
 | Apply do `infra` falha no `gateway_sync` | VPN caída ou host key divergente; suba a VPN e rode de novo |
 | App não vê o IP real | Traefik fora de nós com `externalTrafficPolicy: Local`, ou origem fora de `network_cidr` |
+| Worker sobe mas o `rke2-agent` não existe | `sha256sum -c` do instalador falhou: `rke2_install_sha256` não corresponde ao `install.sh` da tag de `rke2_version` |
+| Placeholder `Pending` em `capacity` | sem capacidade `cax` numa localização, ou `min_workers` maior que o número de `worker_locations` |
+| Scripts recusam SSH num master (`Host key verification failed`) | master recriado: rode `scripts/pin-master-host-keys.sh` |
+| kured não reinicia um nó com patch pendente | fora da janela (01:00–05:00), outro nó com o lock, ou drain bloqueado por PDB (desiste após 30 min): `kubectl -n kube-system logs ds/kured` |
+| `VeleroNoRecentBackup` / BSL `Unavailable` | `kubectl -n velero get backupstoragelocation`; o token R2 do Velero foi revogado ou o bucket mudou |
+| Alertmanager loga `telegram: Not Found (404)` | token do bot incompleto (falta `<id>:`) ou chat ID errado; o bot só conhece um chat depois de receber uma mensagem nele |
 | Certificado não emite | `kubectl describe certificate,challenge -A`; confira o escopo do token Cloudflare e `external_dns_domains` |

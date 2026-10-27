@@ -12,7 +12,9 @@ Hetzner cobra por hora até o teto mensal, e os preços mudam: revise esta pági
 | Masters `cax11` | `hcloud_server.master` | 3 | US$ 6,99 | US$ 20,97 |
 | IPv4 primário do gateway | `hcloud_primary_ip.gateway` | 1 | US$ 0,60 | US$ 0,60 |
 | LB de ingress `lb11` (IPs inclusos) | criado pelo CCM ([ADR 0011](adr/0011-ingress-traefik-hetzner-lb.md)) | 1 | US$ 7,89 | US$ 7,89 |
-| **Subtotal fixo** | | | | **US$ 36,45** |
+| Piso de workers `cax11` (`min_workers = 2`) | pods placeholder ([ADR 0020](adr/0020-worker-floor-and-node-reboots.md)) | 2 | US$ 6,99 | US$ 13,98 |
+| Volumes do Prometheus (20 GB) e do Alertmanager (10 GB) | `monitoring.tf` ([ADR 0021](adr/0021-monitoring-telegram.md)) | 30 GB | US$ 0,0767/GB | US$ 2,30 |
+| **Subtotal fixo** | | | | **US$ 52,73** |
 
 Sem custo: rede privada, subnet, rotas, firewall, placement group, chave SSH e IPv6 primário.
 
@@ -22,7 +24,7 @@ Sem custo: rede privada, subnet, rotas, firewall, placement group, chave SSH e I
 |---|---|---|
 | Workers Karpenter `cax11` | US$ 6,99/mês (US$ 0,0112/h) | por worker, cobrado por hora enquanto existir |
 | `cax21` / `cax31` / `cax41` | US$ 12,49 / 24,99 / 48,49 | o Karpenter pode escolher conforme os pedidos dos pods |
-| Volumes CSI (`hcloud-volumes`) | US$ 0,0767/GB/mês | mínimo de 10 GB (≈ US$ 0,77); nenhum em uso hoje |
+| Volumes CSI (`hcloud-volumes`) | US$ 0,0767/GB/mês | mínimo de 10 GB (≈ US$ 0,77); além dos 30 GB do monitoramento, nenhum em uso hoje |
 | Tráfego | 20 TB inclusos por servidor e pelo LB; excedente US$ 1,20/TB | tráfego na rede privada não é cobrado |
 | Backups Hetzner | +20% do servidor | desligados |
 
@@ -30,20 +32,23 @@ Sem custo: rede privada, subnet, rotas, firewall, placement group, chave SSH e I
 
 | Cenário | Composição | Total/mês |
 |---|---|---|
-| Mínimo prático | fixo + 1 worker `cax11` (os masters têm taint, então Traefik e apps precisam de ao menos um worker) | **US$ 43,44** |
-| **Hoje (2026-10-27)** | fixo + 1 worker `cax11` (`default-dfl4l`), sem volumes | **US$ 43,44** |
-| Teto do NodePool, mais barato | fixo + 32 vCPU como 2× `cax41` | US$ 133,43 |
-| Teto do NodePool, mais caro | fixo + 32 vCPU como 16× `cax11` | US$ 148,29 |
+| Mínimo / **hoje (2026-10-27)** | fixo, com os 2 workers do piso (`default-dfl4l` em fsn1, `default-lpclv` em nbg1) | **US$ 52,73** |
+| Com `min_workers = 1` | fixo − 1 worker; o ingress volta a depender de um nó só | US$ 45,74 |
+| Masters `cax21` (decisão adiada) | fixo + 3 × US$ 5,50 | US$ 69,23 |
+| Teto do NodePool, mais barato | fixo − piso + 32 vCPU como 2× `cax41` | US$ 135,73 |
+| Teto do NodePool, mais caro | fixo − piso + 32 vCPU como 16× `cax11` | US$ 150,59 |
 
 O teto vem de `nodepool_cpu_limit = 32`. Aumentar esse limite aumenta o gasto máximo possível. A consolidação
-(`WhenEmptyOrUnderutilized`, 1 min) remove workers ociosos, então o custo real fica perto do mínimo enquanto
-não há carga.
+(`WhenEmptyOrUnderutilized`, 5 min) remove workers ociosos acima do piso, então o custo real fica perto do mínimo
+enquanto não há carga.
 
 ## Serviços externos
 
 | Serviço | Uso | Custo |
 |---|---|---|
-| Cloudflare R2 | state do Terraform (KBs, poucas operações) | US$ 0 dentro do free tier (10 GB, 1M operações classe A, 10M classe B, sem egress) |
+| Cloudflare R2 | state e backups dele, snapshots do etcd (28 por master) e backups do Velero (7 dias) | US$ 0 dentro do free tier (10 GB, 1M operações classe A, 10M classe B, sem egress); acima de 10 GB, US$ 0,015/GB/mês |
+| Telegram | alertas do Alertmanager | gratuito |
+| healthchecks.io | dead man's switch do Watchdog | US$ 0 no plano Hobbyist |
 | Cloudflare DNS | zonas gerenciadas pelo external-dns | US$ 0 no plano Free |
 | Let's Encrypt | certificados via cert-manager | gratuito |
 | GitHub Actions | CI estático em repo privado | dentro dos minutos inclusos do plano (o job leva poucos minutos) |
@@ -60,10 +65,11 @@ não há carga.
 
 ## Disponibilidade e risco de custo (2026-10-27)
 
-A API mostra que, nesta data, **nenhum tipo `cax` está disponível para compra em `nbg1`, `fsn1` ou `hel1`**
-(`cx23` também não). Os tipos à venda nessas localizações são `cpx02/12/22/32/42/52/62` e `ccx13–63`.
+A disponibilidade de `cax` oscila. Na manhã de 2026-10-27 a API não mostrava **nenhum** `cax` à venda em `nbg1`,
+`fsn1` ou `hel1`, e os tipos à venda eram `cpx02/12/22/32/42/52/62` e `ccx13–63`. À tarde, `cax11` voltou a
+aparecer em `nbg1` e `fsn1`, e o Karpenter criou workers nas duas localizações.
 
-Consequências:
+Enquanto o `cax` estiver esgotado:
 
 - **Workers:** o NodePool aceita somente `arm64` + família `cax`, então o Karpenter **não consegue criar
   workers novos** enquanto isso durar. Pods que precisem de capacidade nova ficam `Pending`. O worker que já

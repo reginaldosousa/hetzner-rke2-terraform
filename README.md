@@ -7,6 +7,10 @@ RKE2 Kubernetes cluster on Hetzner Cloud:
   community [Hetzner provider](https://github.com/stubbi/karpenter-provider-hetzner)
 - A private network — **no cluster node has a public IP**
 - A WireGuard gateway as the only public host (VPN entry + NAT for egress)
+- Production basics: Pod Security `baseline`, pods blocked from the metadata service,
+  etcd snapshots and Velero backups to Cloudflare R2, Prometheus with Telegram
+  alerts and a dead man's switch, a two-worker floor across locations, and kured
+  for patch reboots
 
 The git history builds the project one piece at a time — `git log --reverse -p` reads like a walkthrough.
 
@@ -16,13 +20,15 @@ for each piece of the stack, runbooks, security notes and [ADRs](docs/adr/README
 ## Architecture
 
 ```
-laptop ──WireGuard udp/51820──► gateway  (reserved public IP; firewall: only 51820/udp)
-                                  │ wg0 10.200.0.1, IP forwarding, nftables NAT
+laptop ──WireGuard udp/51820──► gateway  (reserved public IP; firewall + nftables: only 51820/udp)
+                                  │ wg0 10.200.0.1, IP forwarding, nftables NAT;
+                                  │ VPN clients reach only :22 and :6443 on the network
         hcloud network 10.0.0.0/16 ── subnet 10.0.1.0/24
           routes: 0.0.0.0/0 → gateway (egress), 10.200.0.0/24 → gateway (VPN return)
           ├── 10.0.1.2      gateway + HAProxy :6443 kube-apiserver, :9345 RKE2 join
           ├── 10.0.1.11-13  master-1..3   (private only, spread placement group)
-          └── 10.0.1.x      Karpenter workers (private only, Ubuntu + rke2-agent)
+          └── 10.0.1.x      Karpenter workers (private only, Ubuntu + rke2-agent; ≥ 1 in nbg1 and 1 in fsn1)
+egress via the gateway NAT → Cloudflare R2 (etcd snapshots, Velero), Telegram, healthchecks.io
 ```
 
 | Piece | Where |
@@ -33,7 +39,12 @@ laptop ──WireGuard udp/51820──► gateway  (reserved public IP; firewall
 | Masters, CCM + CSI | `terraform/infra/masters.tf`, `templates/master-cloud-init.yaml.tftpl` |
 | Default route for private-only servers | `templates/private-network.sh.tftpl` |
 | Worker bootstrap (Karpenter userData) | `templates/worker-userdata.yaml.tftpl` |
+| Masters' RKE2 drop-ins (Pod Security, etcd-s3, metrics) | `templates/master/`, pushed by `scripts/sync-masters.sh` |
 | Karpenter, NodeClass, NodePool, Traefik LB, external-dns, cert-manager | `terraform/cluster/` |
+| Worker floor, kured | `terraform/cluster/capacity.tf`, `kured.tf` |
+| Metadata block (Calico tier) | `terraform/cluster/metadata-guard.tf` |
+| R2 buckets + scoped Cloudflare tokens, etcd-s3 Secret | `terraform/cluster/etcd-snapshots.tf`, `dns-token.tf`, `velero.tf` |
+| Monitoring, Velero | `terraform/cluster/monitoring.tf`, `velero.tf` |
 
 Two Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
 Kubernetes and therefore runs **over the VPN**.
@@ -51,12 +62,18 @@ with **Object Read & Write scoped to that bucket only**, then:
 aws configure --profile r2     # access key + secret of the R2 token, region "auto"
 ```
 
-**Cloudflare provisioning token**: `terraform/cluster` creates its own R2 bucket
-and scoped account tokens (etcd snapshots, DNS). Create one account API token
+**Cloudflare provisioning token**: `terraform/cluster` creates its own R2 buckets
+and scoped account tokens (etcd snapshots, Velero, DNS). Create one account API token
 with *Account > Workers R2 Storage: Edit*, *Account > Account API Tokens: Edit*
 and *Zone > Zone: Read* on the managed zones, and set it as
 `cloudflare_provisioning_api_token` in `terraform/cluster/terraform.tfvars`.
 It stays on your machine; the cluster only ever gets the narrow tokens.
+
+**Alerts**: create a Telegram bot with @BotFather and send it a message (the bot
+only learns a chat ID after one), then set `telegram_bot_token` (the whole
+`<id>:<secret>`) and `telegram_chat_id` (from `getUpdates`). Optionally set
+`deadmans_switch_url` to a healthchecks.io ping URL with a period ≥ 5 min:
+without it, a dead gateway silences every alert.
 
 ## Bootstrap
 
@@ -73,14 +90,17 @@ sudo wg-quick up ../../wg/laptop.conf          # or import into the WireGuard ap
 ping 10.0.1.11
 ( cd terraform/infra && terraform apply )   # enables the fail-closed gateway sync
 
-# 3. Kubeconfig (waits for RKE2 to come up)
+# 3. Kubeconfig (pins the masters' host keys through the gateway, waits for RKE2)
 ../../scripts/get-kubeconfig.sh
 export KUBECONFIG=$PWD/../../kubeconfig
 kubectl get nodes                               # 3 masters, NotReady/uninitialized is expected
 
-# 4. In-cluster: hcloud secret (unblocks CCM/CSI), Karpenter, NodePool
+# 4. In-cluster: hcloud secret (unblocks CCM/CSI), Karpenter, NodePool, R2 buckets
+#    and tokens, monitoring, Velero, kured, worker floor
 cd ../cluster
+cp terraform.tfvars.example terraform.tfvars   # Cloudflare, Telegram, zones, ACME email
 terraform init && terraform apply
+../../scripts/backup-state.sh
 ```
 
 After step 4 the CCM initialises the masters (`spec.providerID: hcloud://…`) and
@@ -99,7 +119,12 @@ kubectl set resources deployment inflate --requests=cpu=1
 kubectl get nodeclaims -w                       # new servers appear and join
 
 # Scale-down test
-kubectl delete deployment inflate               # consolidation removes the workers after ~1m
+kubectl delete deployment inflate               # consolidation removes the extra workers after ~5m
+
+kubectl -n capacity get pods -o wide            # one placeholder per location keeps 2 workers
+kubectl -n monitoring get pods                  # Prometheus, Alertmanager, Grafana
+kubectl -n velero get backupstoragelocation     # PHASE=Available
+kubectl get etcdsnapshotfiles                   # local and s3:// entries
 ```
 
 From outside the VPN only `udp/51820` on the gateway should answer.
@@ -173,7 +198,8 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
   from the console. A plan still *shows* the destroy; the apply fails. To replace or
   destroy them on purpose: set `protect = false`, apply (in-place), do the change,
   then set it back.
-- **Upgrading RKE2**: bump `rke2_version`. Masters ignore user_data changes (no
+- **Upgrading RKE2**: bump `rke2_version` and `rke2_install_sha256` (the sha256 of
+  that tag's `install.sh`; the command is in the variable's description). Masters ignore user_data changes (no
   accidental rebuilds), so upgrade them in place (e.g. system-upgrade-controller).
   New workers pick up the new version from the userData; existing ones are replaced
   as Karpenter drifts/consolidates them.
@@ -188,6 +214,13 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
   invalid config), the apply fails and the next apply retries, so a removed client
   can't silently keep access. Hand out a new client's config with
   `terraform output -json vpn_client_configs | jq -r .ci`.
+- **Masters' RKE2 config** (Pod Security, etcd snapshots, metrics) lives in drop-ins
+  under `templates/master/`. After an `infra` apply that changes them, run
+  `scripts/sync-masters.sh`: it pushes them and restarts one master at a time.
+- **Monitoring**: Grafana and Prometheus have no Ingress; use
+  `kubectl -n monitoring port-forward` over the VPN (see docs/operations.md).
+- **Backups**: etcd snapshots every 6 h and Velero daily, 7 days each, in R2.
+  Restore runbooks are in docs/operations.md.
 - **Gateway config drift**: `scripts/sync-gateway.sh --dry-run` diffs the live
   gateway against Terraform (private keys redacted). A deliberate rebuild
   (`terraform apply -replace=hcloud_server.gateway`) also re-syncs.
@@ -212,14 +245,16 @@ infrastructure: applies run locally over the VPN from a reviewed plan.
   client-side encrypted), so **anyone with the R2 token can read every secret**:
   keep the token scoped to the bucket and out of CI.
 - **R2 has no object versioning.** Run `scripts/backup-state.sh` after each apply;
-  it keeps the last 30 copies of each state in `state-backups/` (git-ignored).
-  Restore with `terraform state push state-backups/<root>/<file>.tfstate`.
+  it keeps the last 30 copies of each state in `state-backups/` (git-ignored) and
+  in `rke2-tfstate/backups/`. Restore with
+  `terraform state push state-backups/<root>/<file>.tfstate`.
 - Workers join with a separate RKE2 **agent token**; the server token never leaves
   the masters. The Hetzner API token is never put in user_data.
-- Worker userData (with the agent token) is still readable from the Hetzner metadata
-  service (`169.254.169.254`). Consider a Calico `GlobalNetworkPolicy` that blocks pod
-  egress to it.
-- The gateway is a single point of failure for VPN, egress and joining new nodes (HAProxy). Running nodes keep talking to the masters directly if it goes down.
+- User data (with the RKE2 tokens) is readable from the Hetzner metadata service
+  (`169.254.169.254`); a Calico tier blocks pods from reaching it (except hcloud-csi).
+- Pod Security `baseline` is enforced everywhere but `kube-system`; `monitoring` and
+  `velero` are explicit `privileged` exceptions.
+- The gateway is a single point of failure for VPN, egress and joining new nodes (HAProxy). Running nodes keep talking to the masters directly if it goes down, and the dead man's switch reports it.
 
 ## Versions
 
@@ -229,7 +264,11 @@ infrastructure: applies run locally over the VPN from a reviewed plan.
 | hcloud CCM chart | 1.39.2 |
 | hcloud CSI chart | 2.24.1 |
 | karpenter-provider-hetzner chart | 3.0.1 |
-| Terraform hcloud provider | ~> 1.70 |
+| external-dns / cert-manager charts | 1.23.0 / v1.21.3 |
+| kube-prometheus-stack chart | 92.14.0 |
+| kured chart | 6.1.0 |
+| Velero chart / AWS plugin | 12.2.1 / v1.14.4 |
+| Terraform hcloud / cloudflare providers | ~> 1.70 / ~> 5.28 |
 
 Server types default to `cax11` (arm64, 2c/4GB) for the gateway and masters: the cheapest orderable type that is safe. Check what your
 project offers with `hcloud server-type list` and override in `terraform.tfvars`.

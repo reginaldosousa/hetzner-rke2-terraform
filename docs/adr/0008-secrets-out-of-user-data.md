@@ -31,3 +31,7 @@ do token da Hetzner era criado por um manifest no cloud-init dos masters.
   à API da Hetzner.
 - Risco residual: o `agent-token` continua legível pelo metadata service. Mitigação sugerida: uma
   `GlobalNetworkPolicy` do Calico bloqueando o egress de pods para `169.254.169.254`.
+
+## Atualizações
+- **2026-10-27:** A mitigação sugerida foi implementada: o tier `metadata-guard` do Calico nega o egress de pods
+  para `169.254.169.254`, exceto o `hcloud-csi` ([0017](0017-block-instance-metadata-for-pods.md)).

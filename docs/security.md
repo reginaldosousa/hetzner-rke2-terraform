@@ -4,7 +4,7 @@
 
 | Exposto | Protegido por |
 |---|---|
-| Gateway `udp/51820` | WireGuard: sem chave válida não há resposta |
+| Gateway `udp/51820` | WireGuard: sem chave válida não há resposta. O nftables do gateway (policy drop) descarta o resto |
 | LB de ingress `80/443` | Traefik; só serve o que existe como Ingress. HTTP vira 308 para HTTPS |
 | Tudo o mais | Nada tem IP público. Da VPN só SSH e API do Kubernetes; etcd e kubelet só pela rede privada |
 
@@ -20,6 +20,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | RKE2 `agent-token` | user_data dos workers (Secret `karpenter-worker-bootstrap`) | workers. Só permite entrar como agent |
 | Chaves WireGuard | state do `infra`, `/etc/wireguard/wg0.conf`, `wg/` local | gateway e clientes |
 | Host key SSH do gateway | state do `infra` (`tls_private_key.gateway_host`) | gateway; output `gateway_known_hosts` para fixar |
+| Senha admin do Grafana | state do `cluster` (`random_password`) → Secret `monitoring/grafana-admin` | Grafana, acessado por port-forward |
 | Token Cloudflare (DNS) | token criado pelo `cluster` (`dns-token.tf`) → Secrets do external-dns e do cert-manager | escopo Zone Read + DNS Write só nas zonas de `external_dns_domains` |
 | Credenciais R2 (state) | perfil AWS `r2` local | operador; **fora do CI** |
 | Credenciais R2 (snapshots do etcd) | token criado pelo `cluster` → Secret `kube-system/rke2-etcd-snapshot-s3` | RKE2 nos masters; escopo só no bucket `rke2-etcd-snapshots` |
@@ -29,7 +30,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 
 O **state do Terraform contém todos esses segredos** e fica no R2, criptografado em repouso pela Cloudflare mas
 sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso ele tem escopo restrito ao bucket.
-`kubeconfig`, `wg/`, `*.tfvars` e `state-backups/` são ignorados pelo git.
+`kubeconfig`, `master_known_hosts`, `wg/`, `*.tfvars` e `state-backups/` são ignorados pelo git.
 
 ## Decisões de defesa
 
@@ -50,6 +51,17 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   vindo do túnel e HAProxy (`6443`/`9345`) vindo da rede privada ou da VPN. A chain `forward` deixa clientes VPN
   abrirem conexões para a rede só em SSH (`22`) e apiserver (`6443`), mais ICMP; etcd, kubelet e o resto ficam
   fechados para eles. No sentido contrário nada passa: um pod comprometido não alcança o laptop de um operador.
+- **Instalador do RKE2 fixado**: os nós baixam o `install.sh` da tag de `rke2_version` e só o executam se o
+  sha256 bater com `rke2_install_sha256`. O próprio script confere os checksums do tarball da release.
+- **Tokens Cloudflare de escopo mínimo, criados pelo Terraform**: um por bucket R2 (etcd, Velero) e um de DNS
+  (Zone Read + DNS Write nas zonas gerenciadas). O token de provisionamento, que cria tokens, fica só com o
+  operador. O token do etcd não lê o bucket do state (testado: `AccessDenied`).
+- **Backups fora do cluster**: snapshots do etcd e backups do Velero no R2, com alertas de falha
+  ([ADR 0019](adr/0019-etcd-snapshots-r2.md), [ADR 0022](adr/0022-velero-r2.md)).
+- **Patches com reboot**: unattended-upgrades instala, e o kured reinicia os nós um por vez
+  ([ADR 0020](adr/0020-worker-floor-and-node-reboots.md)).
+- **Alertas com dead man's switch**: Telegram para alertas e um ping externo do Watchdog, para que um gateway ou
+  Alertmanager fora do ar não passe despercebido ([ADR 0021](adr/0021-monitoring-telegram.md)).
 - **PROXY protocol restrito**: o Traefik só aceita o cabeçalho vindo de `network_cidr`, para que ninguém forje
   o IP de origem.
 - **external-dns com escopo**: `domainFilters` é obrigatório (uma lista vazia seria rejeitada), e o registro
@@ -66,6 +78,14 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   token. Pods comuns são bloqueados pelo tier `metadata-guard` do Calico
   ([ADR 0017](adr/0017-block-instance-metadata-for-pods.md)). Ainda leem: o `hcloud-csi` (exceção) e pods com
   `hostNetwork`, que só podem existir no `kube-system`.
+- **Namespaces `privileged`**: `monitoring` (node-exporter) e `velero` (node agent) aceitam `hostPath` e
+  `hostNetwork`. Quem pode criar pods neles tem root nos nós. Os dois são gerenciados só pelo Terraform.
+- **Snapshots e backups têm todo o conteúdo do cluster**: os buckets `rke2-etcd-snapshots` e `rke2-velero` devem
+  ser tratados como sensíveis. Os Secrets estão cifrados no etcd (`secrets-encryption` do RKE2), mas o resto não.
+- **Masters `cax11` (4 GB)**: usavam de 37% a 49% da memória sem carga, antes do node-exporter e dos agentes. O
+  upgrade para `cax21` foi adiado, e os alertas de memória do kube-prometheus-stack avisam se apertar.
+- **Kubeconfig de admin compartilhado**: um único certificado `cluster-admin`, sem revogação individual. Quando
+  houver mais operadores, migre para usuários com RBAC próprio.
 - **Provider Karpenter comunitário**: tem acesso total ao token da Hetzner. A versão do chart é fixada, e
   upgrades devem ser revisados.
 - **R2 sem versionamento**: um state corrompido ou sobrescrito se recupera pelos backups (`state-backups/` local e `rke2-tfstate/backups/`). Os dois ficam ao alcance do token do state, que já lê tudo.

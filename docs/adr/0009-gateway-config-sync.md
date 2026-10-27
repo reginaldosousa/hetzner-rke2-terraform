@@ -39,3 +39,9 @@ chave.
 - Todo `apply` do `infra` que mexe no gateway **exige a VPN ativa**.
 - Trocar a host key exige instalá-la primeiro no gateway, pela conexão já confiável.
 - `scripts/sync-gateway.sh --dry-run` detecta drift manual.
+
+## Atualizações
+- **2026-10-27:** Os masters seguem o mesmo princípio: `scripts/pin-master-host-keys.sh` lê as host keys deles pelo
+  gateway (já fixado) e grava `master_known_hosts`, e `get-kubeconfig.sh` e `sync-masters.sh` só conectam com
+  `StrictHostKeyChecking=yes`. A configuração do RKE2 nos masters tem um sync próprio, manual
+  ([0018](0018-pod-security-baseline.md)).

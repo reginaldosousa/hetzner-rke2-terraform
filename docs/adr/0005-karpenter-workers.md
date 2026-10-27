@@ -37,3 +37,8 @@ Usamos o Karpenter com o provider comunitário
 - O provider é **comunitário** e recebe o token da Hetzner com poder total sobre o projeto. A versão é fixada e
   upgrades exigem revisão. Os CRDs precisam ser aplicados antes de um upgrade de chart.
 - Duas localizações dão fallback quando uma esgota a capacidade de `cax`.
+
+## Atualizações
+- **2026-10-27:** A consolidação passou para 5 min, com budget de um nó por vez e `expireAfter: 720h` explícito. Um
+  piso de `min_workers` (2) é mantido por pods placeholder, um por localização, e o NodePool declara as
+  localizações como zonas ([0020](0020-worker-floor-and-node-reboots.md)).

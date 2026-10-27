@@ -34,3 +34,8 @@ gateway, que também entra no `tls-san` dos masters. Timeouts de 1h mantêm `kub
 - O `haproxy.cfg` é um arquivo mutável do gateway: mudanças nos masters chegam via
   [sync in-place](0009-gateway-config-sync.md).
 - `net.ipv4.ip_nonlocal_bind=1` é necessário, já que o IP privado pode chegar por DHCP depois do HAProxy subir.
+
+## Atualizações
+- **2026-10-27:** O health check deixou de ser só TCP: `option httpchk` com TLS, esperando 200/401 de `/readyz` na
+  6443 (o anonymous auth está desligado) e 200 de `/ping` na 9345. Um master com a porta aberta mas o servidor
+  travado sai da rotação.

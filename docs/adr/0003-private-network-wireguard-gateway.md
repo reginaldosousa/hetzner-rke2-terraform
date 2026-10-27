@@ -37,3 +37,12 @@ o operador precisa de acesso administrativo.
 - O gateway vira ponto único de falha para VPN, egress e joins. Nós já no cluster seguem funcionando.
 - `terraform/cluster` e qualquer `kubectl` exigem a VPN ativa.
 - Chaves WireGuard ficam no state (tratar o state como segredo).
+
+## Atualizações
+- **2026-10-27:** O gateway tem nftables próprio, além do firewall da Hetzner: a chain `input` (policy drop) só
+  aceita WireGuard, SSH vindo do túnel e HAProxy vindo da rede privada ou da VPN.
+- **2026-10-27:** Clientes VPN não alcançam mais a rede inteira: o `forward` só deixa passar SSH (`22`), apiserver
+  (`6443`) e ICMP. No sentido contrário, a rede privada não abre conexões para os clientes VPN.
+- **2026-10-27:** Com o gateway fora do ar, nenhum alerta sai do cluster (todo egress passa por ele). O Watchdog do
+  Alertmanager pinga um dead man's switch externo, que avisa quando os pings param
+  ([0021](0021-monitoring-telegram.md)).

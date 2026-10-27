@@ -31,3 +31,7 @@ template, porque o Helm lê números como float64 e renderizaria `1.2e+07`.
 - Um único `terraform apply` no `cluster` resolve tudo.
 - Os charts podem ser verificados offline (`helm lint --strict`, `helm template`), inclusive no CI.
 - O diff no plan é por valores da release, não por recurso Kubernetes.
+
+## Atualizações
+- **2026-10-27:** Toda mudança de template de um chart local exige aumentar o `version` do `Chart.yaml`: o provider
+  Helm só compara values e versão do chart, e uma edição só no template não aparece no plan.

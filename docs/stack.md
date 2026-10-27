@@ -42,12 +42,15 @@ alternativas descartadas.
 - **ADR:** [0003](adr/0003-private-network-wireguard-gateway.md), [0009](adr/0009-gateway-config-sync.md)
 
 ### nftables
-- **Papel:** NAT (masquerade) do egress dos nós e filtro de forwarding no gateway.
+- **Papel:** NAT (masquerade) do egress dos nós e firewall do gateway: a chain `input` só aceita WireGuard, SSH
+  pelo túnel e HAProxy, e a `forward` limita a VPN a SSH e apiserver e impede a rede de abrir conexões para os
+  clientes VPN.
 - **Por quê:** substituto padrão do iptables no Ubuntu 24.04, com troca atômica de ruleset (`nft -f`) e
   validação prévia (`nft -c`), o que permite atualizar o gateway em produção com segurança.
 
 ### HAProxy
-- **Papel:** endpoint do control plane (`10.0.1.2:6443` e `:9345`) com health check dos três masters.
+- **Papel:** endpoint do control plane (`10.0.1.2:6443` e `:9345`) com health check HTTPS dos três masters
+  (`/readyz` e `/ping`).
 - **Por quê:** substitui um Load Balancer pago que só servia kubectl e joins. O gateway já é dependência do
   join (egress), então isso não cria um novo ponto único de falha. Faz reload gracioso e valida a configuração
   com `haproxy -c`.
@@ -61,8 +64,8 @@ alternativas descartadas.
 
 ### RKE2
 - **Papel:** distribuição Kubernetes (3 servers com etcd embutido e agents nos workers).
-- **Por quê:** binário único, etcd embutido, perfil seguro por padrão (CIS), instalação por `curl | sh` no
-  cloud-init, CNI (Canal), Traefik e CoreDNS embutidos, e o mecanismo de *auto-deploy manifests*
+- **Por quê:** binário único, etcd embutido, perfil seguro por padrão (CIS), instalação por script no cloud-init
+  (fixado na tag da versão e conferido por sha256), CNI (Canal), Traefik e CoreDNS embutidos, e o mecanismo de *auto-deploy manifests*
   (`/var/lib/rancher/rke2/server/manifests`) que instala CCM e CSI sem passo extra. A separação entre `token` e
   `agent-token` permite que os workers entrem sem conhecer o segredo dos servers.
 - **ADR:** [0002](adr/0002-rke2.md)
@@ -71,6 +74,19 @@ alternativas descartadas.
 - **Papel:** rede de pods (Flannel VXLAN + políticas do Calico).
 - **Por quê:** é o padrão do RKE2 e funciona como overlay, então não precisa de rotas hcloud por nó
   (`HCLOUD_NETWORK_ROUTES_ENABLED=false`), nem do limite de rotas da rede hcloud.
+
+### Pod Security Admission (`baseline`)
+- **Papel:** recusa pods privilegiados, com `hostPath` ou `hostNetwork` fora do `kube-system`. `monitoring` e
+  `velero` são exceções explícitas (`privileged`), e `capacity` é `restricted`.
+- **Por quê:** é nativo do Kubernetes, sem webhook extra. Fica nos drop-ins do RKE2 nos masters, aplicados com
+  `sync-masters.sh`.
+- **ADR:** [0018](adr/0018-pod-security-baseline.md)
+
+### Tier `metadata-guard` do Calico
+- **Papel:** nega o egress de pods para o metadata service (`169.254.169.254`), que serve o user_data com os
+  tokens do RKE2. Só o `hcloud-csi` é exceção.
+- **Por quê:** o Canal já traz o Calico. Um tier com `defaultAction: Pass` convive com NetworkPolicies comuns.
+- **ADR:** [0017](adr/0017-block-instance-metadata-for-pods.md)
 
 ### hcloud Cloud Controller Manager
 - **Papel:** define `providerID: hcloud://<id>`, IPs internos dos nós, remove o taint `uninitialized` e cria
@@ -89,6 +105,19 @@ alternativas descartadas.
   dispensa gerenciar grupos de nós no Terraform. Roda nos masters porque os workers só existem depois dele.
   O provider é comunitário, e esse risco foi aceito explicitamente.
 - **ADR:** [0005](adr/0005-karpenter-workers.md)
+
+### Pods placeholder (`capacity/worker-placeholder`)
+- **Papel:** mantêm `min_workers` (2) workers vivos, um por localização, para que o ingress nunca dependa de um
+  nó só.
+- **Por quê:** o Karpenter não tem mínimo de nós. Pods `pause` de prioridade negativa e anti-afinidade por zona
+  forçam um nó por localização e são despejados por qualquer pod real.
+- **ADR:** [0020](adr/0020-worker-floor-and-node-reboots.md)
+
+### kured
+- **Papel:** reinicia um nó por vez, de madrugada, quando o unattended-upgrades pede reboot.
+- **Por quê:** os patches de kernel só valem depois de um reboot, e os masters nunca são trocados. Drena antes e
+  desiste depois de 30 min se um PDB bloquear.
+- **ADR:** [0020](adr/0020-worker-floor-and-node-reboots.md)
 
 ### Traefik (embutido no RKE2)
 - **Papel:** ingress controller, terminação TLS e redirect HTTP→HTTPS.
@@ -116,13 +145,34 @@ alternativas descartadas.
   existe para testar sem esbarrar nos rate limits.
 - **ADR:** [0012](adr/0012-dns-tls-cloudflare.md)
 
+## Observabilidade e backup
+
+### kube-prometheus-stack + Telegram
+- **Papel:** Prometheus, Alertmanager, Grafana, kube-state-metrics e node-exporter. Coleta inclusive etcd,
+  controller-manager e scheduler, e envia alertas para o Telegram.
+- **Por quê:** as regras padrão do chart cobrem nós, etcd, apiserver, volumes e workloads. O Telegram só precisa
+  de um bot. O Watchdog vai para um dead man's switch externo, porque um gateway fora do ar silencia os alertas.
+- **ADR:** [0021](adr/0021-monitoring-telegram.md)
+
+### Snapshots do etcd no R2
+- **Papel:** snapshot a cada 6 h, local e no bucket `rke2-etcd-snapshots`, 7 dias.
+- **Por quê:** é a forma de recuperar o control plane se os três masters se perderem. Usa um mecanismo nativo do
+  RKE2, com credenciais num Secret, e não no user_data.
+- **ADR:** [0019](adr/0019-etcd-snapshots-r2.md)
+
+### Velero
+- **Papel:** backup diário de objetos e volumes no bucket `rke2-velero`, 7 dias.
+- **Por quê:** restaura um namespace ou os dados de um volume sem voltar o cluster inteiro. Os volumes são
+  copiados por arquivo (kopia), porque os Volumes da Hetzner não têm snapshot.
+- **ADR:** [0022](adr/0022-velero-r2.md)
+
 ## Infraestrutura como código e operação
 
 ### Terraform (≥ 1.10, < 2.0), dois roots
 - **Papel:** todo o provisionamento. O root `infra` fala com a API da Hetzner, e o root `cluster` fala com o
   Kubernetes.
-- **Por quê:** é a ferramenta com providers maduros para tudo aqui (hcloud, helm, kubernetes, tls, random,
-  wireguard). A divisão em dois roots existe porque `cluster` só funciona com a VPN e o cluster no ar. A versão
+- **Por quê:** é a ferramenta com providers maduros para tudo aqui (hcloud, cloudflare, helm, kubernetes, tls,
+  random, wireguard). A divisão em dois roots existe porque `cluster` só funciona com a VPN e o cluster no ar. A versão
   1.10 é necessária para `use_lockfile` no backend S3, e a 1.9 para validações entre variáveis.
 - **ADR:** [0006](adr/0006-two-terraform-roots.md)
 
@@ -132,8 +182,15 @@ alternativas descartadas.
   o `use_lockfile` funcionar sem DynamoDB. Como o R2 não tem versionamento, existe o `scripts/backup-state.sh`.
 - **ADR:** [0007](adr/0007-state-cloudflare-r2.md)
 
+### Cloudflare (provider Terraform)
+- **Papel:** cria os buckets R2 de backup (etcd e Velero) e os tokens de conta de escopo mínimo usados no
+  cluster (um por bucket e um de DNS).
+- **Por quê:** os tokens viram código revisável e rotacionável. O token do provider pode criar tokens, então fica
+  só no `terraform.tfvars` do operador e nunca entra no cluster.
+- **ADR:** [0019](adr/0019-etcd-snapshots-r2.md)
+
 ### Helm (provider Terraform + charts locais)
-- **Papel:** instala Karpenter, external-dns e cert-manager. Charts locais carregam os recursos que dependem de
+- **Papel:** instala Karpenter, external-dns, cert-manager, kube-prometheus-stack, kured e Velero. Charts locais carregam os recursos que dependem de
   CRDs (NodeClass, NodePool, ClusterIssuers).
 - **Por quê:** `kubernetes_manifest` precisa do CRD já instalado na hora do plan. Um chart local resolve isso
   e ainda pode ser verificado com `helm lint` e `helm template`.
@@ -151,7 +208,7 @@ alternativas descartadas.
   ([ADR 0018](adr/0018-pod-security-baseline.md)).
 - `sync-gateway.sh`: diff, validação e ativação in-place da configuração do gateway, com host key fixada.
   [ADR 0009](adr/0009-gateway-config-sync.md)
-- `backup-state.sh`: guarda cópias locais dos states (mantém as 30 mais recentes).
+- `backup-state.sh`: guarda cópias dos states em `state-backups/` e em `rke2-tfstate/backups/` (30 de cada).
 
 ### GitHub Actions (CI só estático)
 - **Papel:** `terraform fmt`/`validate`, tflint, trivy, `helm lint --strict` e shellcheck em PRs e na `main`.
@@ -169,6 +226,11 @@ alternativas descartadas.
 | karpenter-provider-hetzner | `karpenter_chart_version` | `3.0.1` |
 | external-dns | `external_dns_chart_version` | `1.23.0` |
 | cert-manager | `cert_manager_chart_version` | `v1.21.3` |
+| kube-prometheus-stack | `kube_prometheus_stack_chart_version` | `92.14.0` |
+| kured | `kured_chart_version` | `6.1.0` |
+| Velero / plugin AWS | `velero_chart_version` / `velero_aws_plugin_version` | `12.2.1` / `v1.14.4` |
+| Instalador do RKE2 | `rke2_install_sha256` | sha256 do `install.sh` da tag |
+| Provider cloudflare | `versions.tf` | `~> 5.28` |
 | Provider hcloud | `versions.tf` | `~> 1.70` |
 
 Tudo é fixado como variável para que um upgrade seja uma mudança explícita e revisável, nunca um efeito
