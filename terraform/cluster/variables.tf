@@ -136,6 +136,12 @@ variable "velero_bucket" {
   default     = "rke2-velero"
 }
 
+variable "headscale_backup_bucket" {
+  description = "R2 bucket for Litestream's copy of Headscale's database."
+  type        = string
+  default     = "rke2-headscale"
+}
+
 variable "pocket_id_version" {
   description = "Pocket ID release (image ghcr.io/pocket-id/pocket-id:<version>-distroless)."
   type        = string
