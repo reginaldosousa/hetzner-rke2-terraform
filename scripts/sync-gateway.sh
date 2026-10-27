@@ -66,8 +66,14 @@ for path in $(jq -r 'keys[]' <<<"$files_json"); do
     continue
   fi
   echo "changed    $path"
-  diff <(ssh_gw "cat '$path'" 2>/dev/null) "$file" \
-    | sed -E 's/(PrivateKey *= *).*/\1<redacted>/' | sed 's/^/    /' || true
+  case "$path" in
+    # Whole-file secrets: never print their content, not even a diff.
+    /etc/headscale/oidc_client_secret) echo "    (secret, content not shown)" ;;
+    *)
+      diff <(ssh_gw "cat '$path'" 2>/dev/null) "$file" \
+        | sed -E 's/(PrivateKey *= *).*/\1<redacted>/' | sed 's/^/    /' || true
+      ;;
+  esac
   changed+=("$path")
 done
 
