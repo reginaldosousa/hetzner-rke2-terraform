@@ -57,7 +57,7 @@ ocultadas.
 
 | O quê | Como |
 |---|---|
-| RKE2 | Altere `rke2_version`. Os masters ignoram mudanças de `user_data`, então atualize-os in-place (por exemplo, com system-upgrade-controller). Workers novos já sobem na versão nova, e os antigos são trocados por drift/consolidação. |
+| RKE2 | Altere `rke2_version` e `rke2_install_sha256` (comando na descrição da variável). Os masters ignoram mudanças de `user_data`, então atualize-os in-place (por exemplo, com system-upgrade-controller). Workers novos já sobem na versão nova, e os antigos são trocados por drift/consolidação. |
 | CCM / CSI | Altere `ccm_chart_version`/`csi_chart_version`. Só masters novos recebem o manifest novo. Nos existentes, atualize a versão em `/var/lib/rancher/rke2/server/manifests/hcloud.yaml` em cada master (via SSH na VPN). O RKE2 reaplica o arquivo, e uma edição feita só no objeto `HelmChart` seria sobrescrita por ele. |
 | Karpenter | Aplique os CRDs novos **antes** (o Helm não atualiza CRDs) e depois altere `karpenter_chart_version`. |
 | external-dns / cert-manager / kured | Altere a variável e rode `terraform apply` no root `cluster`. |

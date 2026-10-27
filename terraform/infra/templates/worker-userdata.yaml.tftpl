@@ -23,5 +23,5 @@ write_files:
 
 runcmd:
   - /usr/local/bin/private-network.sh
-  - curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION="${rke2_version}" INSTALL_RKE2_TYPE=agent sh -
+  - curl -sfL -o /root/rke2-install.sh "${rke2_install_url}" && echo "${rke2_install_sha256}  /root/rke2-install.sh" | sha256sum -c - && INSTALL_RKE2_VERSION="${rke2_version}" INSTALL_RKE2_TYPE=agent sh /root/rke2-install.sh
   - systemctl enable --now rke2-agent.service

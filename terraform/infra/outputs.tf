@@ -74,6 +74,8 @@ output "worker_user_data" {
     control_plane_ip       = local.control_plane_ip
     token                  = random_password.rke2_agent_token.result
     rke2_version           = var.rke2_version
+    rke2_install_url       = local.rke2_install_url
+    rke2_install_sha256    = var.rke2_install_sha256
     private_network_script = local.private_network_script
   })
 }

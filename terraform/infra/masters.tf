@@ -11,6 +11,11 @@ resource "random_password" "rke2_agent_token" {
 }
 
 locals {
+  # The installer from the rke2_version tag, checked against a pinned hash
+  # before it runs as root (get.rke2.io serves the latest, unpinned script).
+  # It then verifies the release tarball's own checksums.
+  rke2_install_url = "https://raw.githubusercontent.com/rancher/rke2/${replace(var.rke2_version, "+", "%2B")}/install.sh"
+
   private_network_script = templatefile("${path.module}/templates/private-network.sh.tftpl", {
     network_cidr      = var.network_cidr
     network_router_ip = local.network_router_ip
@@ -72,6 +77,8 @@ resource "hcloud_server" "master" {
     node_ip                = local.master_ips[count.index]
     control_plane_ip       = local.control_plane_ip
     rke2_version           = var.rke2_version
+    rke2_install_url       = local.rke2_install_url
+    rke2_install_sha256    = var.rke2_install_sha256
     private_network_script = local.private_network_script
     location               = var.location
     ccm_version            = var.ccm_chart_version

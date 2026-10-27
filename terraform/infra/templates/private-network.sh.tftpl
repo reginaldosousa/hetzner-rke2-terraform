@@ -28,4 +28,4 @@ chmod 600 /etc/netplan/60-private-default-route.yaml
 netplan apply
 
 # Wait until the NAT gateway is up before anything tries to download.
-until curl -sfI --max-time 5 https://get.rke2.io >/dev/null; do sleep 5; done
+until curl -sfI --max-time 5 https://raw.githubusercontent.com >/dev/null; do sleep 5; done

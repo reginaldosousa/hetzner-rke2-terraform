@@ -150,6 +150,17 @@ variable "master_server_type" {
   default     = "cax11"
 }
 
+variable "rke2_install_sha256" {
+  description = "sha256 of install.sh at the rke2_version tag. Update it with rke2_version: curl -sfL https://raw.githubusercontent.com/rancher/rke2/<version with + as %2B>/install.sh | shasum -a 256"
+  type        = string
+  default     = "42983c86d1da64a92061d83afb57630cedd69241989f1b0673f3db6c3d92ee6b"
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{64}$", var.rke2_install_sha256))
+    error_message = "rke2_install_sha256 must be a hex sha256."
+  }
+}
+
 variable "rke2_version" {
   description = "RKE2 release installed on masters and Karpenter workers (keep them equal)."
   type        = string

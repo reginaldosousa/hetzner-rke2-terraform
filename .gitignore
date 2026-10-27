@@ -21,3 +21,6 @@ tfplan
 
 # Local copies of Terraform state (contain secrets)
 state-backups/
+
+# editor swap files
+*.swp
