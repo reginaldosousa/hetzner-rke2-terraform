@@ -2,6 +2,14 @@
 # VPN entry point + NAT gateway + control-plane endpoint for the private network.
 # First boot only: later config changes are pushed by scripts/sync-gateway.sh
 # (the server ignores user_data changes, so it is not rebuilt for them).
+# Pinned SSH host key (from Terraform) instead of a random one per boot.
+ssh_deletekeys: true
+ssh_genkeytypes: []
+ssh_keys:
+  ed25519_private: |
+    ${indent(4, host_private_key)}
+  ed25519_public: ${trimspace(host_public_key)}
+
 package_update: true
 packages:
   - wireguard

@@ -3,6 +3,11 @@ output "gateway_private_ip" {
   value       = local.gateway_ip
 }
 
+output "gateway_known_hosts" {
+  description = "known_hosts line pinning the gateway's SSH host key (used by scripts/sync-gateway.sh)."
+  value       = local.gateway_known_hosts
+}
+
 output "gateway_public_ip" {
   description = "Public IPv4 of the VPN gateway (the only public endpoint)."
   value       = hcloud_server.gateway.ipv4_address

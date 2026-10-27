@@ -14,6 +14,10 @@ locals {
   ]
 }
 
+locals {
+  gateway_known_hosts = "${local.gateway_ip} ${trimspace(tls_private_key.gateway_host.public_key_openssh)}"
+}
+
 # Everything on the gateway that can change after first boot. Rendered once:
 # cloud-init writes it on first boot, scripts/sync-gateway.sh pushes updates.
 locals {
@@ -34,6 +38,13 @@ locals {
       master_ips = local.master_ips
     })
   }
+}
+
+# The gateway's SSH host key, so scripts/sync-gateway.sh can pin it
+# (StrictHostKeyChecking=yes) instead of trusting whatever answers at the
+# gateway IP on first contact, e.g. a host on a foreign LAN while the VPN is down.
+resource "tls_private_key" "gateway_host" {
+  algorithm = "ED25519"
 }
 
 # Keys live in Terraform state, so the state must be treated as a secret.
@@ -91,7 +102,9 @@ resource "hcloud_server" "gateway" {
   }
 
   user_data = templatefile("${path.module}/templates/gateway-cloud-init.yaml.tftpl", {
-    files = local.gateway_files
+    files            = local.gateway_files
+    host_private_key = tls_private_key.gateway_host.private_key_openssh
+    host_public_key  = tls_private_key.gateway_host.public_key_openssh
   })
 
   labels = {
@@ -126,9 +139,10 @@ resource "terraform_data" "gateway_sync" {
     # Passed directly: `terraform output` would still return the previous
     # apply's values here. Sensitive, so Terraform suppresses this output.
     environment = {
-      GATEWAY_HOST       = local.gateway_ip
-      GATEWAY_FILES_JSON = jsonencode(local.gateway_files)
-      SYNC_WAIT_SECONDS  = "180"
+      GATEWAY_HOST        = local.gateway_ip
+      GATEWAY_FILES_JSON  = jsonencode(local.gateway_files)
+      GATEWAY_KNOWN_HOSTS = local.gateway_known_hosts
+      SYNC_WAIT_SECONDS   = "180"
     }
   }
 }

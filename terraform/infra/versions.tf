@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.4"
+    }
     wireguard = {
       source  = "OJFord/wireguard"
       version = "~> 0.4"
