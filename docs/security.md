@@ -67,4 +67,4 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   `hostNetwork`, que só podem existir no `kube-system`.
 - **Provider Karpenter comunitário**: tem acesso total ao token da Hetzner. A versão do chart é fixada, e
   upgrades devem ser revisados.
-- **R2 sem versionamento**: um state corrompido ou sobrescrito só se recupera pelos backups locais.
+- **R2 sem versionamento**: um state corrompido ou sobrescrito se recupera pelos backups (`state-backups/` local e `rke2-tfstate/backups/`). Os dois ficam ao alcance do token do state, que já lê tudo.

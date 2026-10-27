@@ -103,7 +103,7 @@ mas os nós já no cluster continuam falando com os masters.
 
 ## State
 
-- Backup: `scripts/backup-state.sh` → `state-backups/<root>/` (git-ignored, 30 cópias por root).
+- Backup: `scripts/backup-state.sh` → `state-backups/<root>/` (git-ignored) e `s3://rke2-tfstate/backups/<root>/`, 30 cópias por root em cada. Restore: `aws --profile r2 s3 cp s3://rke2-tfstate/backups/<root>/<ts>.tfstate .` e `terraform state push`.
 - Restore: `terraform -chdir=terraform/<root> state push state-backups/<root>/<arquivo>.tfstate`.
 - Lock preso: `terraform force-unlock <ID>`, só depois de confirmar que nenhum apply está rodando.
 
