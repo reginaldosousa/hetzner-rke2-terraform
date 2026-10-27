@@ -19,6 +19,12 @@ spec:
         - key: kubernetes.io/arch
           operator: In
           values: {{ toJson .Values.architectures }}
+        # Lists every allowed location as a topology domain. Without it Karpenter
+        # only counts locations that already have a node, so zone spread on
+        # pods never reaches the others.
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values: {{ toJson .Values.locations }}
         - key: karpenter.hetzner.cloud/server-family
           operator: In
           values: {{ toJson .Values.serverFamilies }}
