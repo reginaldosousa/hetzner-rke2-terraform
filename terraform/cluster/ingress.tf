@@ -37,7 +37,17 @@ resource "kubernetes_manifest" "traefik_config" {
           kubernetesIngress = { publishedService = { enabled = true } }
         }
         ports = {
-          for name in ["web", "websecure"] : name => {
+          web = {
+            proxyProtocol = { trustedIPs = [local.infra.network_cidr] }
+            # Every HTTP request gets a 308 to HTTPS. DNS-01 needs no plain-HTTP
+            # path, so ACME is unaffected.
+            http = {
+              redirections = {
+                entryPoint = { to = "websecure", scheme = "https", permanent = true }
+              }
+            }
+          }
+          websecure = {
             proxyProtocol = { trustedIPs = [local.infra.network_cidr] }
           }
         }
