@@ -37,6 +37,9 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
 - **Host key fixada**: `sync-gateway.sh` envia a chave privada do WireGuard e só conecta com
   `StrictHostKeyChecking=yes` contra a chave conhecida, nunca trust-on-first-use. Numa LAN estranha que também
   use `10.0.x.x`, ele recusa em vez de entregar a chave.
+- **nftables no gateway** além do firewall da Hetzner: a chain `input` (policy drop) só aceita WireGuard, SSH
+  vindo do túnel e HAProxy (`6443`/`9345`) vindo da rede privada ou da VPN. A chain `forward` deixa clientes VPN
+  abrirem conexões para a rede, mas não o contrário: um pod comprometido não alcança o laptop de um operador.
 - **PROXY protocol restrito**: o Traefik só aceita o cabeçalho vindo de `network_cidr`, para que ninguém forje
   o IP de origem.
 - **external-dns com escopo**: `domainFilters` é obrigatório (uma lista vazia seria rejeitada), e o registro

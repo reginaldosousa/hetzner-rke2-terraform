@@ -32,6 +32,7 @@ locals {
     "/etc/nftables.conf" = templatefile("${path.module}/templates/gateway/nftables.conf.tftpl", {
       network_cidr = var.network_cidr
       vpn_cidr     = var.vpn_cidr
+      vpn_port     = var.vpn_port
     })
     "/etc/haproxy/haproxy.cfg" = templatefile("${path.module}/templates/gateway/haproxy.cfg.tftpl", {
       gateway_ip = local.gateway_ip
