@@ -18,8 +18,8 @@ curta e sem revogação individual. Quem tem o arquivo e a VPN tem tudo. O plano
 - **SQLite num Hetzner Volume**, uma réplica, `Recreate`. A chave de criptografia é gerada pelo Terraform. O
   namespace é `restricted`. O Velero copia o volume todo dia ([ADR 0022](0022-velero-r2.md)).
 - **kube-apiserver com `AuthenticationConfiguration` (`apiserver.config.k8s.io/v1`)**, entregue como drop-in nos
-  masters ([ADR 0018](0018-pod-security-baseline.md)) e ligado só quando `oidc_client_id` existe. O
-  diretório `/etc/rancher/rke2/oidc` é montado no static pod, e não o arquivo, para que alterações cheguem.
+  masters ([ADR 0018](0018-pod-security-baseline.md)) e ligado só quando `oidc_client_id` existe. O RKE2 monta
+  o arquivo no static pod sozinho, como faz com os outros argumentos de arquivo.
 - **Identidade:** username = `oidc:<sub>`, porque email e username são editáveis no Pocket ID. Grupos =
   `oidc:<grupo>`. O RBAC só usa grupos: `oidc:k8s-admins` → `cluster-admin`.
 - **Cliente:** `kubelogin` (`kubectl oidc-login`) com client público e PKCE.
@@ -31,7 +31,8 @@ curta e sem revogação individual. Quem tem o arquivo e a VPN tem tudo. O plano
   cluster de 3 masters `cax11`.
 - **IdP SaaS (Google, Entra):** sem nada para operar, mas a identidade sai do controle do projeto.
 - **Pocket ID no gateway:** mantém o IdP fora do cluster, mas aumenta a superfície do host mais sensível.
-- **Flags `--oidc-*` antigas:** um único issuer e exigem restart. A configuração estruturada recarrega sozinha.
+- **Flags `--oidc-*` antigas:** um único issuer só. A configuração estruturada aceita vários (a VPN pode ter o
+  seu) e regras em CEL.
 - **Só pela VPN:** menos superfície, mas não serviria para autenticar a própria VPN.
 
 ## Consequências
