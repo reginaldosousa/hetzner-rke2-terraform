@@ -60,6 +60,12 @@ alternativas descartadas.
 - **Papel:** IPv4 público fixo do gateway.
 - **Por quê:** o IP sobrevive a um rebuild do gateway, então nenhuma configuração de cliente VPN quebra.
 
+### Pocket ID
+- **Papel:** provedor OIDC com login por passkey. Por enquanto autentica o kubectl, via `kubelogin`.
+- **Por quê:** um binário Go com SQLite, leve o bastante para `cax11`, sem senhas para vazar. Fica público para
+  servir de login também à VPN no futuro.
+- **ADR:** [0023](adr/0023-oidc-pocket-id.md)
+
 ## Kubernetes
 
 ### RKE2

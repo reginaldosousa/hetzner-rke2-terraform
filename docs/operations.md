@@ -56,6 +56,29 @@ scripts/sync-masters.sh             # envia e reinicia um master por vez, espera
 Se um master não voltar, o script para antes do próximo (o etcd segue com 2 de 3). Veja
 `journalctl -u rke2-server` nele, corrija e rode de novo.
 
+### Login OIDC no kubectl (Pocket ID)
+Primeira vez ([ADR 0023](adr/0023-oidc-pocket-id.md)):
+
+1. `oidc_issuer_url` no `terraform.tfvars` do `infra`, `apply` do `infra` e depois do `cluster`.
+2. **Logo em seguida**, abra `https://auth.devcomm.com.br/setup` e crie o admin com uma passkey. Até isso
+   acontecer, qualquer um pode criar o admin.
+3. No Pocket ID: crie o grupo `k8s-admins` e adicione os usuários. Crie o client OIDC `kubectl` como **public
+   client** (PKCE), com callbacks `http://localhost:8000` e `http://localhost:18000` e acesso restrito ao grupo.
+4. Coloque o client ID em `oidc_client_id`, rode `apply` do `infra` e `scripts/sync-masters.sh`.
+5. No laptop (`brew install kubelogin` ou `kubectl krew install oidc-login`):
+
+```bash
+kubectl config set-credentials oidc \
+  --exec-api-version=client.authentication.k8s.io/v1 --exec-interactive-mode=IfAvailable \
+  --exec-command=kubectl --exec-arg=oidc-login --exec-arg=get-token \
+  --exec-arg=--oidc-issuer-url=https://auth.devcomm.com.br \
+  --exec-arg=--oidc-client-id=<client id> --exec-arg=--oidc-extra-scope=groups
+kubectl --user=oidc auth whoami   # oidc:<sub>, grupos oidc:k8s-admins
+```
+
+Acesso novo = adicionar ao grupo. Para revogar, tire o usuário do grupo ou desative-o; tokens já emitidos valem
+até expirar. O `kubeconfig` admin do RKE2 continua sendo o break-glass e o que o `terraform/cluster` usa.
+
 ### Drift do gateway
 `scripts/sync-gateway.sh --dry-run` mostra o diff entre o gateway e o Terraform, com as chaves privadas
 ocultadas.

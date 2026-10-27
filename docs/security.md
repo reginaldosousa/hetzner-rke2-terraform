@@ -6,6 +6,7 @@
 |---|---|
 | Gateway `udp/51820` | WireGuard: sem chave válida não há resposta. O nftables do gateway (policy drop) descarta o resto |
 | LB de ingress `80/443` | Traefik; só serve o que existe como Ingress. HTTP vira 308 para HTTPS |
+| Pocket ID (`auth.devcomm.com.br`) | Login só por passkey; `/setup` fecha depois do primeiro admin ([ADR 0023](adr/0023-oidc-pocket-id.md)) |
 | Tudo o mais | Nada tem IP público. Da VPN só SSH e API do Kubernetes; etcd e kubelet só pela rede privada |
 
 Como a Hetzner não permite firewall em servidores só com rede privada, o isolamento dos masters e workers vem da
@@ -26,6 +27,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Credenciais R2 (snapshots do etcd) | token criado pelo `cluster` → Secret `kube-system/rke2-etcd-snapshot-s3` | RKE2 nos masters; escopo só no bucket `rke2-etcd-snapshots` |
 | Token do bot do Telegram / URL do dead man's switch | state do `cluster` → Secret `monitoring/alertmanager-receivers` | Alertmanager |
 | Credenciais R2 (Velero) | token criado pelo `cluster` → Secret `velero/velero-r2` | Velero; escopo só no bucket `rke2-velero` |
+| Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
 | Token Cloudflare de provisionamento | `terraform.tfvars` do `cluster` (provider) | operador; cria buckets R2 e tokens, **nunca** vai para o cluster |
 
 O **state do Terraform contém todos esses segredos** e fica no R2, criptografado em repouso pela Cloudflare mas
@@ -37,6 +39,8 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
 - **Separação de tokens** ([ADR 0008](adr/0008-secrets-out-of-user-data.md)): o user_data é legível pelo
   metadata service (`169.254.169.254`), inclusive por pods. Por isso workers recebem só o agent token, e o token
   da Hetzner não aparece em user_data nenhum.
+- **kubectl com identidade** ([ADR 0023](adr/0023-oidc-pocket-id.md)): login OIDC no Pocket ID (passkey),
+  tokens de vida curta e acesso por grupo. O kubeconfig admin do RKE2 fica como break-glass.
 - **Pod Security `baseline` por padrão** ([ADR 0018](adr/0018-pod-security-baseline.md)): fora do
   `kube-system`, nada de pods privilegiados, `hostPath` ou `hostNetwork`. `restricted` só gera aviso.
 - **Metadata service bloqueado para pods** ([ADR 0017](adr/0017-block-instance-metadata-for-pods.md)).

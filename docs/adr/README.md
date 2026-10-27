@@ -29,3 +29,4 @@ Para criar um ADR, copie [`template.md`](template.md) para o próximo número li
 | [0020](0020-worker-floor-and-node-reboots.md) | Mínimo de workers com pods placeholder e reboots automáticos com kured | Aceito |
 | [0021](0021-monitoring-telegram.md) | Monitoramento com kube-prometheus-stack e alertas no Telegram | Aceito |
 | [0022](0022-velero-r2.md) | Backup de objetos e volumes com Velero no R2 | Aceito |
+| [0023](0023-oidc-pocket-id.md) | Login OIDC no kubectl com Pocket ID | Aceito |
