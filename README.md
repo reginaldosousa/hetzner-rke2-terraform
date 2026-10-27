@@ -51,6 +51,13 @@ with **Object Read & Write scoped to that bucket only**, then:
 aws configure --profile r2     # access key + secret of the R2 token, region "auto"
 ```
 
+**Cloudflare provisioning token**: `terraform/cluster` creates its own R2 bucket
+and scoped account tokens (etcd snapshots, DNS). Create one account API token
+with *Account > Workers R2 Storage: Edit*, *Account > Account API Tokens: Edit*
+and *Zone > Zone: Read* on the managed zones, and set it as
+`cloudflare_provisioning_api_token` in `terraform/cluster/terraform.tfvars`.
+It stays on your machine; the cluster only ever gets the narrow tokens.
+
 ## Bootstrap
 
 ```bash

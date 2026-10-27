@@ -22,7 +22,8 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Host key SSH do gateway | state do `infra` (`tls_private_key.gateway_host`) | gateway; output `gateway_known_hosts` para fixar |
 | Token Cloudflare | state do `cluster` → Secrets do external-dns e do cert-manager | escopo Zone:Read + DNS:Edit nas zonas gerenciadas |
 | Credenciais R2 (state) | perfil AWS `r2` local | operador; **fora do CI** |
-| Credenciais R2 (snapshots do etcd) | state do `cluster` → Secret `kube-system/rke2-etcd-snapshot-s3` | RKE2 nos masters; escopo só no bucket `rke2-etcd-snapshots` |
+| Credenciais R2 (snapshots do etcd) | token criado pelo `cluster` → Secret `kube-system/rke2-etcd-snapshot-s3` | RKE2 nos masters; escopo só no bucket `rke2-etcd-snapshots` |
+| Token Cloudflare de provisionamento | `terraform.tfvars` do `cluster` (provider) | operador; cria buckets R2 e tokens, **nunca** vai para o cluster |
 
 O **state do Terraform contém todos esses segredos** e fica no R2, criptografado em repouso pela Cloudflare mas
 sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso ele tem escopo restrito ao bucket.

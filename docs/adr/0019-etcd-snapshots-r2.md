@@ -18,14 +18,20 @@ etcd, perde o cluster sem cópia para restaurar. O R2 já guarda o state do Terr
 - Endpoint, bucket (`rke2-etcd-snapshots`, pasta = `cluster_name`), credenciais e retenção ficam no Secret
   `kube-system/rke2-etcd-snapshot-s3`, criado pelo root `terraform/cluster`. O RKE2 lê esse Secret a cada
   snapshot, então ele não precisa existir no boot (mesmo padrão do Secret `hcloud`).
-- As credenciais são de um token R2 próprio, com Object Read & Write **só** nesse bucket, separado do token do
-  state.
+- O bucket e as credenciais são criados pelo próprio Terraform (provider `cloudflare`, root `cluster`): um
+  token de conta com `Workers R2 Storage Bucket Item Write` **só** nesse bucket, separado do token do state. As
+  credenciais S3 são derivadas do token (id e sha256 do valor) e vão direto para o Secret. O bucket tem
+  `prevent_destroy`.
+- O provider usa `cloudflare_provisioning_api_token` (R2 Storage: Edit e Account API Tokens: Edit), que fica só
+  no `terraform.tfvars` do operador e nunca entra no cluster.
 
 ## Alternativas consideradas
 
 - **Credenciais S3 no drop-in do master:** iriam para o user_data de masters novos, que pods conseguiriam ler
   ([ADR 0008](0008-secrets-out-of-user-data.md)).
 - **Mesmo bucket do state:** um token vazado do cluster daria acesso ao state, que tem todos os segredos.
+- **Bucket e token criados à mão no painel:** passo manual sem registro, e a rotação dependeria de alguém
+  lembrar de atualizar o tfvars.
 - **Velero:** faz backup de objetos da API e volumes, mas não substitui o snapshot do etcd para recuperar o
   control plane. Pode vir depois, para os volumes.
 

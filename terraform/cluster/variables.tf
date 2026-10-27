@@ -55,31 +55,20 @@ variable "acme_email" {
   type        = string
 }
 
-variable "etcd_s3_endpoint" {
-  description = "S3 endpoint (host only, no scheme) for etcd snapshots. Defaults to the Cloudflare R2 account that holds the Terraform state."
+variable "cloudflare_account_id" {
+  description = "Cloudflare account that holds the R2 buckets (the Terraform state's and the etcd snapshots')."
   type        = string
-  default     = "9cf4130ce6c67ffa7f69903b7e2e4b15.r2.cloudflarestorage.com"
+  default     = "9cf4130ce6c67ffa7f69903b7e2e4b15"
+}
 
-  validation {
-    condition     = !can(regex("://", var.etcd_s3_endpoint))
-    error_message = "etcd_s3_endpoint is a host name without scheme; RKE2 uses HTTPS."
-  }
+variable "cloudflare_provisioning_api_token" {
+  description = "Cloudflare token used only by Terraform: Account > Workers R2 Storage: Edit and Account > Account API Tokens: Edit. Never stored in the cluster."
+  type        = string
+  sensitive   = true
 }
 
 variable "etcd_s3_bucket" {
   description = "Bucket for etcd snapshots. Keep it separate from the Terraform state bucket."
   type        = string
   default     = "rke2-etcd-snapshots"
-}
-
-variable "etcd_s3_access_key" {
-  description = "Access key of an R2 token limited to Object Read & Write on etcd_s3_bucket."
-  type        = string
-  sensitive   = true
-}
-
-variable "etcd_s3_secret_key" {
-  description = "Secret key matching etcd_s3_access_key."
-  type        = string
-  sensitive   = true
 }
