@@ -13,7 +13,7 @@ terraform {
   }
 }
 
-# Reached over the WireGuard tunnel via the private LB (see scripts/get-kubeconfig.sh).
+# Reached over the WireGuard tunnel via HAProxy on the gateway (see scripts/get-kubeconfig.sh).
 provider "kubernetes" {
   config_path = var.kubeconfig_path
 }

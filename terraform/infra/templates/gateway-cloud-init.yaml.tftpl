@@ -1,14 +1,44 @@
 #cloud-config
-# VPN entry point + NAT gateway for the private network.
+# VPN entry point + NAT gateway + control-plane endpoint for the private network.
 package_update: true
 packages:
   - wireguard
   - nftables
+  - haproxy
 
 write_files:
   - path: /etc/sysctl.d/99-forwarding.conf
     content: |
       net.ipv4.ip_forward = 1
+      # HAProxy binds the private IP, which DHCP may assign after it starts.
+      net.ipv4.ip_nonlocal_bind = 1
+
+  # Replaces a paid load balancer. Only used by kubectl (over the VPN) and by
+  # nodes joining; joined RKE2 agents load-balance across masters themselves.
+  # Bound to the private IP only, never the public one.
+  - path: /etc/haproxy/haproxy.cfg
+    content: |
+      global
+        maxconn 4096
+
+      defaults
+        mode tcp
+        timeout connect 5s
+        # Long-lived kubectl watch / logs -f / exec streams.
+        timeout client 1h
+        timeout server 1h
+%{ for port in [6443, 9345] ~}
+
+      frontend control_plane_${port}
+        bind ${gateway_ip}:${port}
+        default_backend masters_${port}
+
+      backend masters_${port}
+        default-server check inter 5s fall 2 rise 2
+%{ for i, ip in master_ips ~}
+        server master-${i + 1} ${ip}:${port}
+%{ endfor ~}
+%{ endfor ~}
 
   - path: /etc/wireguard/wg0.conf
     permissions: "0600"
@@ -52,3 +82,4 @@ runcmd:
   - sysctl --system
   - systemctl enable --now nftables
   - systemctl enable --now wg-quick@wg0
+  - systemctl enable haproxy && systemctl restart haproxy

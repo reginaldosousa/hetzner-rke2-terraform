@@ -14,12 +14,12 @@ write_files:
       # the metadata service, so they never get the server token).
       agent-token: ${agent_token}
 %{ if !bootstrap ~}
-      server: https://${lb_ip}:9345
+      server: https://${control_plane_ip}:9345
 %{ endif ~}
       node-ip: ${node_ip}
       advertise-address: ${node_ip}
       tls-san:
-        - ${lb_ip}
+        - ${control_plane_ip}
       # The hcloud CCM sets providerID hcloud://<id>, which Karpenter needs.
       # Both are required: the first only configures the kubelet; without the
       # second RKE2 runs its own CCM and sets an immutable rke2:// providerID.

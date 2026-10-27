@@ -42,13 +42,13 @@ resource "hcloud_server" "master" {
     ip         = local.master_ips[count.index]
   }
 
-  # master-1 initialises etcd; the others join through the load balancer.
+  # master-1 initialises etcd; the others join through HAProxy on the gateway.
   user_data = templatefile("${path.module}/templates/master-cloud-init.yaml.tftpl", {
     bootstrap              = count.index == 0
     token                  = random_password.rke2_token.result
     agent_token            = random_password.rke2_agent_token.result
     node_ip                = local.master_ips[count.index]
-    lb_ip                  = local.lb_ip
+    control_plane_ip       = local.control_plane_ip
     rke2_version           = var.rke2_version
     private_network_script = local.private_network_script
     location               = var.location

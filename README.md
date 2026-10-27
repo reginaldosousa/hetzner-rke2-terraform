@@ -13,12 +13,11 @@ The git history builds the project one piece at a time — `git log --reverse -p
 ## Architecture
 
 ```
-laptop ──WireGuard udp/51820──► gateway  (public IP; firewall: only 51820/udp)
+laptop ──WireGuard udp/51820──► gateway  (reserved public IP; firewall: only 51820/udp)
                                   │ wg0 10.200.0.1, IP forwarding, nftables NAT
         hcloud network 10.0.0.0/16 ── subnet 10.0.1.0/24
           routes: 0.0.0.0/0 → gateway (egress), 10.200.0.0/24 → gateway (VPN return)
-          ├── 10.0.1.2      gateway
-          ├── 10.0.1.10     private LB  :6443 kube-apiserver, :9345 RKE2 join
+          ├── 10.0.1.2      gateway + HAProxy :6443 kube-apiserver, :9345 RKE2 join
           ├── 10.0.1.11-13  master-1..3   (private only, spread placement group)
           └── 10.0.1.x      Karpenter workers (private only, Ubuntu + rke2-agent)
 ```
@@ -27,7 +26,7 @@ laptop ──WireGuard udp/51820──► gateway  (public IP; firewall: only 51
 |---|---|
 | Network, routes | `terraform/infra/network.tf` |
 | VPN/NAT gateway | `terraform/infra/gateway.tf`, `templates/gateway-cloud-init.yaml.tftpl` |
-| Control-plane LB | `terraform/infra/loadbalancer.tf` |
+| Control-plane endpoint (HAProxy) | `templates/gateway-cloud-init.yaml.tftpl` |
 | Masters, CCM + CSI | `terraform/infra/masters.tf`, `templates/master-cloud-init.yaml.tftpl` |
 | Default route for private-only servers | `templates/private-network.sh.tftpl` |
 | Worker bootstrap (Karpenter userData) | `templates/worker-userdata.yaml.tftpl` |
@@ -108,7 +107,7 @@ From outside the VPN only `udp/51820` on the gateway should answer.
 - Worker userData (with the agent token) is still readable from the Hetzner metadata
   service (`169.254.169.254`). Consider a Calico `GlobalNetworkPolicy` that blocks pod
   egress to it.
-- The gateway is a single point of failure for VPN and egress.
+- The gateway is a single point of failure for VPN, egress and joining new nodes (HAProxy). Running nodes keep talking to the masters directly if it goes down.
 
 ## Versions
 

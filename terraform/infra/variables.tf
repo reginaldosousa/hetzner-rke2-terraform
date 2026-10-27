@@ -29,7 +29,7 @@ variable "network_cidr" {
 }
 
 variable "subnet_cidr" {
-  description = "Subnet for servers and the load balancer. Must be inside network_cidr."
+  description = "Subnet for all servers. Must be inside network_cidr."
   type        = string
   default     = "10.0.1.0/24"
 }

@@ -1,8 +1,9 @@
 locals {
   # Fixed private addresses inside the subnet.
   gateway_ip = cidrhost(var.subnet_cidr, 2)
-  lb_ip      = cidrhost(var.subnet_cidr, 10)
-  master_ips = [for i in range(3) : cidrhost(var.subnet_cidr, 11 + i)]
+  # kube-apiserver + RKE2 join endpoint: HAProxy on the gateway (no paid LB).
+  control_plane_ip = local.gateway_ip
+  master_ips       = [for i in range(3) : cidrhost(var.subnet_cidr, 11 + i)]
 
   # Hetzner's virtual router: first address of the whole network. Private-only
   # servers send their default route here; the network route below then

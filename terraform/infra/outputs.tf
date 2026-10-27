@@ -40,8 +40,8 @@ output "ssh_key_id" {
 }
 
 output "control_plane_ip" {
-  description = "Private LB address for the kube-apiserver (:6443) and RKE2 join (:9345)."
-  value       = local.lb_ip
+  description = "HAProxy on the gateway: kube-apiserver (:6443) and RKE2 join (:9345)."
+  value       = local.control_plane_ip
 }
 
 output "master_ips" {
@@ -58,7 +58,7 @@ output "worker_user_data" {
   description = "cloud-init that joins a Karpenter worker as an RKE2 agent."
   sensitive   = true
   value = templatefile("${path.module}/templates/worker-userdata.yaml.tftpl", {
-    lb_ip                  = local.lb_ip
+    control_plane_ip       = local.control_plane_ip
     token                  = random_password.rke2_agent_token.result
     rke2_version           = var.rke2_version
     private_network_script = local.private_network_script

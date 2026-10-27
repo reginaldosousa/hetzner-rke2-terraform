@@ -75,6 +75,8 @@ resource "hcloud_server" "gateway" {
     network_cidr   = var.network_cidr
     private_key    = wireguard_asymmetric_key.gateway.private_key
     peers          = local.vpn_peers
+    gateway_ip     = local.gateway_ip
+    master_ips     = local.master_ips
   })
 
   labels = {

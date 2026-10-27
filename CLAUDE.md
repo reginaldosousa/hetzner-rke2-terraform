@@ -21,7 +21,7 @@ helm template t terraform/cluster/charts/nodepools --set networkID=12345678 --se
 Render a cloud-init template to check the output. Run this from `terraform/infra`, passing the template's vars, and use `printf`, not zsh `echo`, which mangles `\n`:
 
 ```bash
-printf '%s\n' 'templatefile("templates/worker-userdata.yaml.tftpl", {lb_ip="10.0.1.10", token="T", rke2_version="v", private_network_script="echo"})' \
+printf '%s\n' 'templatefile("templates/worker-userdata.yaml.tftpl", {control_plane_ip="10.0.1.2", token="T", rke2_version="v", private_network_script="echo"})' \
   | terraform console -var hcloud_token=x -var ssh_public_key=x
 ```
 
@@ -31,9 +31,8 @@ printf '%s\n' 'templatefile("templates/worker-userdata.yaml.tftpl", {lb_ip="10.0
   - `terraform/infra` talks only to the Hetzner API.
   - `terraform/cluster` talks to Kubernetes through `../../kubeconfig`, so it only works with the WireGuard tunnel up. It reads infra's outputs through `terraform_remote_state` from the *local* state file `../infra/terraform.tfstate`. Changing infra's backend or outputs breaks `cluster`.
 - **Fixed private IPs** are computed with `cidrhost` in `network.tf` locals:
-  - gateway `.2`
-  - load balancer `.10`
-  - masters `.11` to `.13`
+  - gateway `.2`, which is also the control-plane endpoint (`local.control_plane_ip`). There is no paid LB: HAProxy on the gateway forwards :6443 and :9345 to the masters. Only kubectl and joining nodes use it, because joined RKE2 agents load-balance across the masters themselves.
+  - masters `.11` to `.13`. HAProxy's backend list is generated from `local.master_ips`.
 
   The router that private-only servers use as their default gateway is `cidrhost(network_cidr, 1)`. The hcloud network route `0.0.0.0/0 → gateway` then forwards their traffic to the NAT gateway.
 - **`templates/private-network.sh.tftpl` is shared** by the master and worker cloud-init. It must run before anything downloads, because private-only servers have no default route until it does. Its result is embedded with `indent(6, …)`.

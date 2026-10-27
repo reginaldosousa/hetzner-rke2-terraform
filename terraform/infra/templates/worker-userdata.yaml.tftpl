@@ -10,7 +10,7 @@ write_files:
   - path: /etc/rancher/rke2/config.yaml
     permissions: "0600"
     content: |
-      server: https://${lb_ip}:9345
+      server: https://${control_plane_ip}:9345
       token: ${token}
       cloud-provider-name: external
       # Karpenter removes this once it has synced the NodeClaim onto the Node.
