@@ -121,10 +121,15 @@ Point DNS at that IP. Traefik serves a self-signed cert until you add TLS
 - **Upgrading the Karpenter chart**: Helm does not update CRDs — apply them first
   (see the provider README).
 - **Adding VPN users**: add `name = <host number>` to `vpn_clients` (e.g. `ci = 11`
-  → 10.200.0.11) and re-apply. Numbers are fixed, so removing a client never
-  renumbers the others. Note this changes
-  the gateway's user_data and therefore **recreates the gateway** (brief VPN + egress
-  outage; the public IP is reserved and stays the same).
+  → 10.200.0.11), `terraform apply`, then `scripts/sync-gateway.sh`. Numbers are
+  fixed, so removing a client never renumbers the others. The gateway is **not
+  rebuilt**: the script validates the new config on the gateway and activates it
+  with `wg syncconf`, so existing tunnels stay up. Hand out the new client's config
+  with `terraform output -json vpn_client_configs | jq -r .ci`.
+- **Gateway config** (WireGuard peers, NAT rules, HAProxy backends) is only written
+  by cloud-init on first boot; later changes go through `scripts/sync-gateway.sh`
+  (`--dry-run` shows the diff). A deliberate rebuild
+  (`terraform apply -replace=hcloud_server.gateway`) picks up the latest config.
 - **Architecture**: everything runs on arm64 (`cax`), the cheapest orderable type.
   Workload images must be multi-arch (`docker buildx --platform linux/amd64,linux/arm64`).
   To use x86 workers instead, set `architectures`/`serverFamilies` in

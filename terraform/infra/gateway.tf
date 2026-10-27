@@ -14,6 +14,28 @@ locals {
   ]
 }
 
+# Everything on the gateway that can change after first boot. Rendered once:
+# cloud-init writes it on first boot, scripts/sync-gateway.sh pushes updates.
+locals {
+  gateway_files = {
+    "/etc/wireguard/wg0.conf" = templatefile("${path.module}/templates/gateway/wg0.conf.tftpl", {
+      vpn_gateway_ip = local.vpn_gateway_ip
+      vpn_prefix     = split("/", var.vpn_cidr)[1]
+      vpn_port       = var.vpn_port
+      private_key    = wireguard_asymmetric_key.gateway.private_key
+      peers          = local.vpn_peers
+    })
+    "/etc/nftables.conf" = templatefile("${path.module}/templates/gateway/nftables.conf.tftpl", {
+      network_cidr = var.network_cidr
+      vpn_cidr     = var.vpn_cidr
+    })
+    "/etc/haproxy/haproxy.cfg" = templatefile("${path.module}/templates/gateway/haproxy.cfg.tftpl", {
+      gateway_ip = local.gateway_ip
+      master_ips = local.master_ips
+    })
+  }
+}
+
 # Keys live in Terraform state, so the state must be treated as a secret.
 resource "wireguard_asymmetric_key" "gateway" {}
 
@@ -69,20 +91,19 @@ resource "hcloud_server" "gateway" {
   }
 
   user_data = templatefile("${path.module}/templates/gateway-cloud-init.yaml.tftpl", {
-    vpn_gateway_ip = local.vpn_gateway_ip
-    vpn_prefix     = split("/", var.vpn_cidr)[1]
-    vpn_port       = var.vpn_port
-    vpn_cidr       = var.vpn_cidr
-    network_cidr   = var.network_cidr
-    private_key    = wireguard_asymmetric_key.gateway.private_key
-    peers          = local.vpn_peers
-    gateway_ip     = local.gateway_ip
-    master_ips     = local.master_ips
+    files = local.gateway_files
   })
 
   labels = {
     cluster = var.cluster_name
     role    = "gateway"
+  }
+
+  lifecycle {
+    # user_data only bootstraps the first boot. VPN peer / HAProxy / NAT
+    # changes are pushed in place by scripts/sync-gateway.sh instead of
+    # rebuilding the server (which would drop VPN, egress and the API endpoint).
+    ignore_changes = [user_data]
   }
 
   depends_on = [hcloud_network_subnet.nodes]

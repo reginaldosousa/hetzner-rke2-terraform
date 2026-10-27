@@ -1,0 +1,11 @@
+[Interface]
+Address    = ${vpn_gateway_ip}/${vpn_prefix}
+ListenPort = ${vpn_port}
+PrivateKey = ${private_key}
+%{ for peer in peers ~}
+
+# ${peer.name}
+[Peer]
+PublicKey  = ${peer.public_key}
+AllowedIPs = ${peer.ip}/32
+%{ endfor ~}

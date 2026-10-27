@@ -1,3 +1,8 @@
+output "gateway_private_ip" {
+  description = "Gateway address inside the private network (SSH over the VPN)."
+  value       = local.gateway_ip
+}
+
 output "gateway_public_ip" {
   description = "Public IPv4 of the VPN gateway (the only public endpoint)."
   value       = hcloud_server.gateway.ipv4_address
@@ -68,4 +73,10 @@ output "worker_user_data" {
 output "network_cidr" {
   description = "Private network range (e.g. trusted source of PROXY protocol from hcloud LBs)."
   value       = var.network_cidr
+}
+
+output "gateway_config_files" {
+  description = "Desired gateway config files (path => content), pushed by scripts/sync-gateway.sh."
+  sensitive   = true
+  value       = local.gateway_files
 }
