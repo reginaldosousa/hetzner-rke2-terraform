@@ -16,7 +16,7 @@ spec:
           values: [on-demand]
         - key: kubernetes.io/arch
           operator: In
-          values: [amd64]
+          values: {{ toJson .Values.architectures }}
         - key: karpenter.hetzner.cloud/server-family
           operator: In
           values: {{ toJson .Values.serverFamilies }}

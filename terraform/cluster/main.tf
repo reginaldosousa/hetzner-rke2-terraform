@@ -27,3 +27,9 @@ data "terraform_remote_state" "infra" {
 locals {
   infra = data.terraform_remote_state.infra.outputs
 }
+
+variable "worker_locations" {
+  description = "Locations Karpenter may place workers in. All must be in the infra network's zone (eu-central)."
+  type        = list(string)
+  default     = ["nbg1", "fsn1"]
+}

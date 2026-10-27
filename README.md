@@ -97,6 +97,10 @@ From outside the VPN only `udp/51820` on the gateway should answer.
 - **Adding VPN users**: add a name to `vpn_clients` and re-apply. Note this changes
   the gateway's user_data and therefore **recreates the gateway** (brief VPN + egress
   outage; the public IP is reserved and stays the same).
+- **Architecture**: everything runs on arm64 (`cax`), the cheapest orderable type.
+  Workload images must be multi-arch (`docker buildx --platform linux/amd64,linux/arm64`).
+  To use x86 workers instead, set `architectures`/`serverFamilies` in
+  `terraform/cluster/charts/nodepools/values.yaml`.
 
 ## Security notes
 

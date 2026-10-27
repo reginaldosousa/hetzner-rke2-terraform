@@ -1,6 +1,7 @@
 # Filled in by terraform/cluster/nodepool.tf.
 clusterName: ""
-location: nbg1
+# Hetzner locations workers may launch in (must share the network zone).
+locations: [nbg1]
 networkID: 0
 sshKeyID: 0
 userDataSecret:
@@ -8,5 +9,6 @@ userDataSecret:
   name: karpenter-worker-bootstrap
   key: userData
 cpuLimit: "32"
-# amd64 families; add cax (arm64) only once your images are multi-arch.
-serverFamilies: [cx, cpx]
+# arm64 (cax) is the cheapest orderable family; workload images must be multi-arch.
+architectures: [arm64]
+serverFamilies: [cax]

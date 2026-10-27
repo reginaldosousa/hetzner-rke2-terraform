@@ -7,7 +7,7 @@ resource "helm_release" "nodepools" {
 
   values = [yamlencode({
     clusterName = local.infra.cluster_name
-    location    = local.infra.location
+    locations   = var.worker_locations
     networkID   = tonumber(local.infra.network_id)
     sshKeyID    = tonumber(local.infra.ssh_key_id)
     cpuLimit    = var.nodepool_cpu_limit
