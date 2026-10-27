@@ -34,6 +34,9 @@ fi
 # Files land as root 0600; the headscale service user must read them.
 chown root:headscale /etc/headscale/config.yaml /etc/headscale/policy.hujson /etc/headscale/oidc_client_secret
 chmod 0640 /etc/headscale/config.yaml /etc/headscale/policy.hujson /etc/headscale/oidc_client_secret
+# Its keys are written by cloud-init/sync as root, before or after the package.
+chown -R headscale:headscale /var/lib/headscale
+chmod 0750 /var/lib/headscale
 
 systemctl daemon-reload
 systemctl enable headscale tailscaled

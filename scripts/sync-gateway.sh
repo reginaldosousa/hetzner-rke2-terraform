@@ -68,7 +68,8 @@ for path in $(jq -r 'keys[]' <<<"$files_json"); do
   echo "changed    $path"
   case "$path" in
     # Whole-file secrets: never print their content, not even a diff.
-    /etc/headscale/oidc_client_secret) echo "    (secret, content not shown)" ;;
+    /etc/headscale/oidc_client_secret|/var/lib/headscale/*.key)
+      echo "    (secret, content not shown)" ;;
     *)
       diff <(ssh_gw "cat '$path'" 2>/dev/null) "$file" \
         | sed -E 's/(PrivateKey *= *).*/\1<redacted>/' | sed 's/^/    /' || true
@@ -97,6 +98,20 @@ CHANGED=("$@")
 has /etc/nftables.conf       && nft -c -f $stage/nftables.conf
 has /etc/haproxy/haproxy.cfg && haproxy -q -c -f $stage/haproxy.cfg
 has /etc/wireguard/wg0.conf  && wg-quick strip $stage/wg0.conf >/dev/null
+# Headscale's keys only ever come from Terraform (docs/adr/0026). A live key
+# that differs means it was never imported: replacing it would make every
+# client re-register, so stop instead of rotating it.
+for path in "${CHANGED[@]}"; do
+  case "$path" in
+    /var/lib/headscale/*.key)
+      if [ -s "$path" ] && [ "$(tr -d '[:space:]' < "$path")" != "$(tr -d '[:space:]' < "$stage/$(basename "$path")")" ]; then
+        echo "ERROR: $path on the gateway differs from Terraform's; refusing to replace it." >&2
+        echo "Import the live key (docs/operations.md, \"Rebuild do gateway\") and re-run." >&2
+        exit 1
+      fi
+      ;;
+  esac
+done
 # Checked by the running Headscale (gRPC), against its live users and nodes.
 if has /etc/headscale/policy.hujson && systemctl -q is-active headscale; then
   headscale policy check -f $stage/policy.hujson
@@ -115,7 +130,7 @@ fi
 hs_restart=false
 for path in "${CHANGED[@]}"; do
   case "$path" in
-    /etc/headscale/*|/usr/local/sbin/*|/etc/systemd/system/*)
+    /etc/headscale/*|/var/lib/headscale/*|/usr/local/sbin/*|/etc/systemd/system/*)
       install -D -m 600 "$stage/$(basename "$path")" "$path"
       [ "$path" = /etc/headscale/policy.hujson ] || hs_restart=true
       ;;

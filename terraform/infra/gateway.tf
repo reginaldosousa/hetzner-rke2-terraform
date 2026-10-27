@@ -38,6 +38,9 @@ locals {
       network_cidr = var.network_cidr
     })
     "/etc/headscale/oidc_client_secret" = var.headscale_oidc_client_secret
+    # Headscale's own file format; it trims surrounding whitespace on read.
+    "/var/lib/headscale/noise_private.key"       = "privkey:${random_bytes.headscale_noise_key.hex}"
+    "/var/lib/headscale/derp_server_private.key" = "privkey:${random_bytes.headscale_derp_key.hex}"
     "/usr/local/sbin/headscale-install.sh" = templatefile("${path.module}/templates/gateway/headscale-install.sh.tftpl", {
       headscale_version    = var.headscale_version
       headscale_deb_sha256 = var.headscale_deb_sha256
@@ -86,6 +89,18 @@ locals {
 # gateway IP on first contact, e.g. a host on a foreign LAN while the VPN is down.
 resource "tls_private_key" "gateway_host" {
   algorithm = "ED25519"
+}
+
+# Headscale's Noise (control protocol) and DERP server keys, kept in Terraform
+# like the host key so a rebuilt gateway presents the same server to every
+# client (docs/adr/0026). sync-gateway.sh refuses to overwrite a live key that
+# differs: import the running gateway's keys before the first apply.
+resource "random_bytes" "headscale_noise_key" {
+  length = 32
+}
+
+resource "random_bytes" "headscale_derp_key" {
+  length = 32
 }
 
 # Keys live in Terraform state, so the state must be treated as a secret.
