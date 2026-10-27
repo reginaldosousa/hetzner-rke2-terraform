@@ -21,3 +21,25 @@ variable "worker_locations" {
   type        = list(string)
   default     = ["nbg1", "fsn1"]
 }
+
+variable "external_dns_chart_version" {
+  description = "kubernetes-sigs external-dns chart version."
+  type        = string
+  default     = "1.23.0"
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token for external-dns (Zone:Read + DNS:Edit on the managed zones)."
+  type        = string
+  sensitive   = true
+}
+
+variable "external_dns_domains" {
+  description = "Cloudflare zones external-dns may manage, e.g. [\"example.com\"]."
+  type        = list(string)
+
+  validation {
+    condition     = length(var.external_dns_domains) > 0
+    error_message = "List at least one zone; an empty filter would let external-dns touch every zone the token can reach."
+  }
+}

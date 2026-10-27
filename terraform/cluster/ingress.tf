@@ -24,10 +24,17 @@ resource "kubernetes_manifest" "traefik_config" {
             "load-balancer.hetzner.cloud/location"       = local.infra.location
             "load-balancer.hetzner.cloud/type"           = "lb11"
             "load-balancer.hetzner.cloud/use-private-ip" = "true"
+            # Keep the LB's private IP out of the Service status, or
+            # external-dns would publish a 10.x address to public DNS.
+            "load-balancer.hetzner.cloud/disable-private-ingress" = "true"
             # Preserve the real client IP: the LB prepends a PROXY header that
             # Traefik accepts only from inside the private network.
             "load-balancer.hetzner.cloud/uses-proxyprotocol" = "true"
           }
+        }
+        # Copy the LB IPs into each Ingress status, which external-dns reads.
+        providers = {
+          kubernetesIngress = { publishedService = { enabled = true } }
         }
         ports = {
           for name in ["web", "websecure"] : name => {

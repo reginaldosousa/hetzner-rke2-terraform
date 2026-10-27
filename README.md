@@ -30,7 +30,7 @@ laptop ──WireGuard udp/51820──► gateway  (reserved public IP; firewall
 | Masters, CCM + CSI | `terraform/infra/masters.tf`, `templates/master-cloud-init.yaml.tftpl` |
 | Default route for private-only servers | `templates/private-network.sh.tftpl` |
 | Worker bootstrap (Karpenter userData) | `templates/worker-userdata.yaml.tftpl` |
-| Karpenter, NodeClass, NodePool | `terraform/cluster/` |
+| Karpenter, NodeClass, NodePool, Traefik LB, external-dns | `terraform/cluster/` |
 
 Two Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
 Kubernetes and therefore runs **over the VPN**.
@@ -104,12 +104,27 @@ see real client IPs.
 
 ```bash
 kubectl apply -f examples/whoami.yaml
-IP=$(kubectl -n kube-system get svc rke2-traefik -o jsonpath='{.status.loadBalancer.ingress[2].ip}')
+IP=$(kubectl -n kube-system get svc rke2-traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 curl http://$IP/                     # echoes the request, incl. X-Real-Ip
 ```
 
-Point DNS at that IP. Traefik serves a self-signed cert until you add TLS
-(e.g. cert-manager).
+Traefik serves a self-signed cert until you add TLS (e.g. cert-manager).
+
+### DNS (external-dns → Cloudflare)
+
+external-dns (`terraform/cluster/external-dns.tf`) creates A/AAAA records for
+every Ingress host inside `external_dns_domains`, pointing at the LB's public
+IPs. Set `cloudflare_api_token` (Zone:Read + DNS:Edit on those zones only) and
+`external_dns_domains` in `terraform/cluster/terraform.tfvars`.
+
+It runs with `policy: sync`: deleting an Ingress deletes its records. TXT
+ownership records (owner = cluster name) keep it from touching records it did
+not create. To proxy a host through Cloudflare, annotate the Ingress with
+`external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"`.
+
+```bash
+kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
+```
 
 > The ingress LB is created by the CCM, **not by Terraform**. Before destroying
 > the cluster, delete it (`kubectl -n kube-system delete svc rke2-traefik`, or
