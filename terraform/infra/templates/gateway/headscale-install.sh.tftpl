@@ -15,7 +15,7 @@ if [ "$(installed headscale)" != "$hs_version" ]; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
   curl -fsSL -o "$tmp/headscale.deb" \
-    "https://github.com/juanfont/headscale/releases/download/v$hs_version/headscale_$${hs_version}_$${arch}.deb"
+    "https://github.com/juanfont/headscale/releases/download/v$hs_version/headscale_$${hs_version}_linux_$${arch}.deb"
   echo "${headscale_deb_sha256}  $tmp/headscale.deb" | sha256sum -c --quiet -
   # --force-confold: keep the config Terraform already wrote.
   dpkg -i --force-confold "$tmp/headscale.deb"
