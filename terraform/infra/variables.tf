@@ -66,13 +66,13 @@ variable "image" {
 variable "gateway_server_type" {
   description = "Server type for the VPN/NAT/HAProxy gateway. WireGuard + NAT + HAProxy fit easily in 2GB."
   type        = string
-  default     = "cpx11"
+  default     = "cax11"
 }
 
 variable "master_server_type" {
-  description = "Server type for the 3 RKE2 server nodes. cx23 (2c/4GB) is the RKE2 server minimum; go bigger past ~50 workers."
+  description = "Server type for the 3 RKE2 server nodes. cax11 (2c/4GB arm64) meets the RKE2 server minimum; go bigger past ~50 workers."
   type        = string
-  default     = "cx23"
+  default     = "cax11"
 }
 
 variable "rke2_version" {
