@@ -19,16 +19,19 @@ for each piece of the stack, runbooks, security notes and [ADRs](docs/adr/README
 
 ## Architecture
 
-```
-laptop ──WireGuard udp/51820──► gateway  (reserved public IP; firewall + nftables: only 51820/udp)
-                                  │ wg0 10.200.0.1, IP forwarding, nftables NAT;
-                                  │ VPN clients reach only :22 and :6443 on the network
-        hcloud network 10.0.0.0/16 ── subnet 10.0.1.0/24
-          routes: 0.0.0.0/0 → gateway (egress), 10.200.0.0/24 → gateway (VPN return)
-          ├── 10.0.1.2      gateway + HAProxy :6443 kube-apiserver, :9345 RKE2 join
-          ├── 10.0.1.11-13  master-1..3   (private only, spread placement group)
-          └── 10.0.1.x      Karpenter workers (private only, Ubuntu + rke2-agent; ≥ 1 in nbg1 and 1 in fsn1)
-egress via the gateway NAT → Cloudflare R2 (etcd snapshots, Velero), Telegram, healthchecks.io
+```mermaid
+flowchart TB
+    laptop["laptop"] -- "WireGuard udp/51820" --> gw
+    subgraph net["hcloud network 10.0.0.0/16 · subnet 10.0.1.0/24"]
+        gw["gateway 10.0.1.2<br/>reserved public IP · firewall + nftables: only 51820/udp<br/>wg0 10.200.0.1 · NAT · HAProxy :6443 / :9345"]
+        masters["master-1..3 · 10.0.1.11-13<br/>private only, spread placement group"]
+        workers["Karpenter workers · 10.0.1.x<br/>private only, ≥ 1 in nbg1 and 1 in fsn1"]
+    end
+    gw -- "kube-apiserver, RKE2 join" --> masters
+    gw -. "VPN clients: only :22 and :6443" .-> workers
+    masters -. "egress: route 0.0.0.0/0 → gateway NAT" .-> gw
+    workers -. "egress" .-> gw
+    gw -. "R2 (etcd snapshots, Velero), Telegram, healthchecks.io" .-> ext(("internet"))
 ```
 
 | Piece | Where |
