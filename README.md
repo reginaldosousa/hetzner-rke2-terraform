@@ -119,5 +119,5 @@ From outside the VPN only `udp/51820` on the gateway should answer.
 | karpenter-provider-hetzner chart | 3.0.1 |
 | Terraform hcloud provider | ~> 1.70 |
 
-Server types default to `cx23` (gateway) and `cx33` (masters). Check what your
+Server types default to `cpx11` (gateway) and `cx23` (masters), the cheapest that are safe. Check what your
 project offers with `hcloud server-type list` and override in `terraform.tfvars`.
