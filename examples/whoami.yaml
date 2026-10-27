@@ -37,8 +37,13 @@ kind: Ingress
 metadata:
   name: whoami
   namespace: default
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts: [whoami.devcomm.com.br]
+      secretName: whoami-tls
   rules:
     - host: whoami.devcomm.com.br
       http:
