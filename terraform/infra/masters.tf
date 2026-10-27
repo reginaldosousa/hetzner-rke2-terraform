@@ -19,11 +19,18 @@ locals {
 
 # RKE2 settings that must reach running masters too. cloud-init writes them on
 # first boot; scripts/sync-masters.sh pushes changes and restarts one master at
-# a time (masters ignore user_data changes). No secrets here.
+# a time (masters ignore user_data changes). No secrets here: anything secret
+# goes in a Kubernetes Secret created by terraform/cluster.
 locals {
+  # Shared with terraform/cluster, which creates the Secret (output etcd_s3_config_secret).
+  etcd_s3_config_secret = "rke2-etcd-snapshot-s3"
+
   master_files = {
     "/etc/rancher/rke2/pod-security.yaml"                  = file("${path.module}/templates/master/pod-security.yaml")
     "/etc/rancher/rke2/config.yaml.d/10-pod-security.yaml" = file("${path.module}/templates/master/10-pod-security.yaml")
+    "/etc/rancher/rke2/config.yaml.d/20-etcd-snapshots.yaml" = templatefile("${path.module}/templates/master/20-etcd-snapshots.yaml.tftpl", {
+      secret_name = local.etcd_s3_config_secret
+    })
   }
 }
 

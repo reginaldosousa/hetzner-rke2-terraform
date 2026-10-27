@@ -88,6 +88,11 @@ output "master_config_files" {
   value       = local.master_files
 }
 
+output "etcd_s3_config_secret" {
+  description = "kube-system Secret the masters read etcd snapshot S3 settings from (created by terraform/cluster)."
+  value       = local.etcd_s3_config_secret
+}
+
 output "gateway_config_files" {
   description = "Desired gateway config files (path => content), pushed by scripts/sync-gateway.sh."
   sensitive   = true

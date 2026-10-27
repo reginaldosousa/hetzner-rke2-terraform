@@ -1,0 +1,10 @@
+# Off-site etcd snapshots (docs/adr/0019). Endpoint, bucket, credentials and
+# S3 retention come from the kube-system Secret named below, which
+# terraform/cluster creates; RKE2 reads it at every snapshot, so it need not
+# exist at boot. Any other etcd-s3-* option here would make RKE2 ignore it.
+etcd-s3: true
+etcd-s3-config-secret: ${secret_name}
+# Every 6h; 28 local copies per master = 7 days.
+etcd-snapshot-schedule-cron: "0 */6 * * *"
+etcd-snapshot-retention: 28
+etcd-snapshot-compress: true

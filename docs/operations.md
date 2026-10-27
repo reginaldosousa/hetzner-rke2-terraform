@@ -91,6 +91,33 @@ mas os nós já no cluster continuam falando com os masters.
 - Restore: `terraform -chdir=terraform/<root> state push state-backups/<root>/<arquivo>.tfstate`.
 - Lock preso: `terraform force-unlock <ID>`, só depois de confirmar que nenhum apply está rodando.
 
+## etcd
+
+Snapshots a cada 6 h, locais e no R2 (`rke2-etcd-snapshots/<cluster_name>/`), 7 dias de retenção
+([ADR 0019](adr/0019-etcd-snapshots-r2.md)).
+
+```bash
+kubectl get etcdsnapshotfiles                      # lista locais e S3 (coluna LOCATION)
+ssh root@10.0.1.11 rke2 etcd-snapshot save          # snapshot sob demanda (usa o Secret)
+```
+
+### Restore (perda do etcd)
+O Secret não vale para restore: passe as opções S3 na linha de comando. Precisa do token de server original,
+que está no state do `infra` (`terraform -chdir=terraform/infra state show random_password.rke2_token`), mas os
+masters já o têm no `config.yaml`.
+
+1. Pare o RKE2 nos três masters: `systemctl stop rke2-server`.
+2. No master-1:
+   ```bash
+   rke2 server --cluster-reset \
+     --etcd-s3 --etcd-s3-endpoint=<endpoint> --etcd-s3-bucket=rke2-etcd-snapshots \
+     --etcd-s3-folder=<cluster_name> --etcd-s3-region=auto --etcd-s3-bucket-lookup-type=path \
+     --etcd-s3-access-key=<...> --etcd-s3-secret-key=<...> \
+     --cluster-reset-restore-path=<nome do snapshot>
+   systemctl start rke2-server
+   ```
+3. Nos masters 2 e 3: `rm -rf /var/lib/rancher/rke2/server/db` e `systemctl start rke2-server`.
+
 ## Escala
 
 - Teto de vCPU dos workers: `nodepool_cpu_limit` (padrão 32).
