@@ -117,3 +117,21 @@ variable "deadmans_switch_url" {
   default     = ""
   sensitive   = true
 }
+
+variable "velero_chart_version" {
+  description = "vmware-tanzu velero chart version."
+  type        = string
+  default     = "12.2.1"
+}
+
+variable "velero_aws_plugin_version" {
+  description = "velero-plugin-for-aws image tag; must match the Velero version in the chart (1.14.x for Velero 1.18)."
+  type        = string
+  default     = "v1.14.4"
+}
+
+variable "velero_bucket" {
+  description = "R2 bucket for Velero backups."
+  type        = string
+  default     = "rke2-velero"
+}

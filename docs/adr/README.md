@@ -28,3 +28,4 @@ Para criar um ADR, copie [`template.md`](template.md) para o próximo número li
 | [0019](0019-etcd-snapshots-r2.md) | Snapshots do etcd no Cloudflare R2 | Aceito |
 | [0020](0020-worker-floor-and-node-reboots.md) | Mínimo de workers com pods placeholder e reboots automáticos com kured | Aceito |
 | [0021](0021-monitoring-telegram.md) | Monitoramento com kube-prometheus-stack e alertas no Telegram | Aceito |
+| [0022](0022-velero-r2.md) | Backup de objetos e volumes com Velero no R2 | Aceito |

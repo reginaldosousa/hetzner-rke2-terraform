@@ -154,6 +154,17 @@ terraform -chdir=terraform/infra destroy -var protect=false -var gateway_sync=fa
 
 Confira no console da Hetzner se sobrou algum servidor `role=worker` ou volume CSI.
 
+## Backups do Velero
+
+Diário às 23:00, 7 dias, no R2 `rke2-velero/<cluster_name>/` ([ADR 0022](adr/0022-velero-r2.md)). Use o CLI
+`velero` (ou `kubectl -n velero get backups`):
+
+```bash
+velero backup get                                         # lista
+velero backup create manual-$(date +%s) --from-schedule velero-daily
+velero restore create --from-backup <backup> --include-namespaces <ns>
+```
+
 ## Monitoramento
 
 Alertas vão para o Telegram (`telegram_chat_id`), e o `Watchdog` para o dead man's switch

@@ -24,6 +24,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Credenciais R2 (state) | perfil AWS `r2` local | operador; **fora do CI** |
 | Credenciais R2 (snapshots do etcd) | token criado pelo `cluster` → Secret `kube-system/rke2-etcd-snapshot-s3` | RKE2 nos masters; escopo só no bucket `rke2-etcd-snapshots` |
 | Token do bot do Telegram / URL do dead man's switch | state do `cluster` → Secret `monitoring/alertmanager-receivers` | Alertmanager |
+| Credenciais R2 (Velero) | token criado pelo `cluster` → Secret `velero/velero-r2` | Velero; escopo só no bucket `rke2-velero` |
 | Token Cloudflare de provisionamento | `terraform.tfvars` do `cluster` (provider) | operador; cria buckets R2 e tokens, **nunca** vai para o cluster |
 
 O **state do Terraform contém todos esses segredos** e fica no R2, criptografado em repouso pela Cloudflare mas
