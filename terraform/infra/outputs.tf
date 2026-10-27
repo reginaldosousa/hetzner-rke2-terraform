@@ -27,11 +27,13 @@ output "vpn_client_configs" {
 }
 
 output "cluster_name" {
-  value = var.cluster_name
+  description = "Cluster name; prefixes resource names and scopes Karpenter-managed servers."
+  value       = var.cluster_name
 }
 
 output "location" {
-  value = var.location
+  description = "Hetzner location of the gateway and masters."
+  value       = var.location
 }
 
 output "network_id" {
@@ -50,7 +52,8 @@ output "control_plane_ip" {
 }
 
 output "master_ips" {
-  value = local.master_ips
+  description = "Private IPs of the RKE2 server nodes (master-1..3)."
+  value       = local.master_ips
 }
 
 output "hcloud_token" {
