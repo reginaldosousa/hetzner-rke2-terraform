@@ -17,7 +17,8 @@ locals {
 # Headscale (docs/adr/0025) runs once its Pocket ID client exists
 # (terraform/identity output headscale_oidc_client_secret).
 locals {
-  headscale    = var.headscale_hostname != "" && var.headscale_oidc_client_secret != ""
+  # Whether the secret is set is not itself secret; keeps plans readable.
+  headscale    = var.headscale_hostname != "" && nonsensitive(var.headscale_oidc_client_secret != "")
   tailnet_cidr = "100.64.0.0/10" # Tailscale's CGNAT range; clients expect it
   vpn_ifaces   = local.headscale ? "\"wg0\", \"tailscale0\"" : "\"wg0\""
   vpn_cidrs    = local.headscale ? "${var.vpn_cidr}, ${local.tailnet_cidr}" : var.vpn_cidr
