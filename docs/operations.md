@@ -258,45 +258,42 @@ Alertas vão para o Telegram (`telegram_chat_id`), e o `Watchdog` para o dead ma
 
 ```bash
 kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d; echo
-# Grafana: https://grafana.devcomm.internal (VPN + CA interna, ver "Aplicações internas")
+# Grafana: https://grafana.int.devcomm.com.br (só pela VPN, ver "Aplicações internas")
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093      # silenciar alertas
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090        # Status > Targets
 ```
 
 ## Aplicações internas
 
-Nomes em `internal_domain` (`devcomm.internal`) só existem pela VPN: o dnsmasq do gateway responde qualquer nome
-da zona com o LB interno `10.0.1.254`, e o certificado vem da CA privada ([ADR 0027](adr/0027-internal-apps-dns.md)).
-
-**Confiar na CA, uma vez por dispositivo.** A raiz só vale para a zona (name constraint):
+Nomes em `internal_domain` (`int.devcomm.com.br`) só existem pela VPN: o dnsmasq do gateway responde qualquer
+nome da zona com o LB interno `10.0.1.254`, e o DNS público não tem registro nenhum nela. O certificado é o
+wildcard `*.int.devcomm.com.br` do Let's Encrypt, que os navegadores já aceitam
+([ADR 0027](adr/0027-internal-apps-dns.md), [0028](adr/0028-internal-apps-public-subdomain.md)).
 
 ```bash
-kubectl -n cert-manager get secret internal-ca -o jsonpath='{.data.ca\.crt}' | base64 -d > internal-ca.crt
-sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain internal-ca.crt   # macOS
-# Linux: sudo cp internal-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates
-# Firefox usa o próprio repositório: Configurações > Certificados > Importar
+kubectl -n kube-system get certificate internal-wildcard   # READY=True; renovado pelo cert-manager
 ```
 
 **DNS.** Na tailnet vem sozinho (split DNS do Headscale; o cliente precisa aceitar DNS, o padrão dos apps). No
 WireGuard de break-glass, configure o resolver da zona:
 
 ```bash
-sudo mkdir -p /etc/resolver && echo 'nameserver 10.0.1.2' | sudo tee /etc/resolver/devcomm.internal   # macOS
-dig +short grafana.devcomm.internal @10.0.1.2                                                         # 10.0.1.254
+sudo mkdir -p /etc/resolver && echo 'nameserver 10.0.1.2' | sudo tee /etc/resolver/int.devcomm.com.br   # macOS
+dig +short grafana.int.devcomm.com.br @10.0.1.2                                                         # 10.0.1.254
 ```
 
-**Publicar uma aplicação** com um Ingress que tenha as duas anotações. Sem a de entrypoint, a política
-`internal-hosts-on-internal-entrypoints` recusa o Ingress, porque o host ficaria no LB público:
+**Publicar uma aplicação** com um Ingress que tenha as duas anotações, sem bloco `tls`: o Traefik serve o
+wildcard pelo SNI. Sem a de entrypoint, a política `internal-hosts-on-internal-entrypoints` recusa o Ingress,
+porque o host ficaria no LB público. O wildcard cobre um nível (`app.int.devcomm.com.br`):
 
 ```yaml
 metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: internal
-    cert-manager.io/cluster-issuer: internal-ca
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   ingressClassName: traefik
-  rules: [{host: app.devcomm.internal, http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: app, port: {number: 80}}}}]}}]
-  tls: [{hosts: [app.devcomm.internal], secretName: app-tls}]
+  rules: [{host: app.int.devcomm.com.br, http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: app, port: {number: 80}}}}]}}]
 ```
 
 ## Troubleshooting rápido
@@ -308,8 +305,8 @@ spec:
 | NodeClaim travada | `kubectl get hcloudnodeclass default` precisa estar `READY=True`; capacidade esgotada na localização |
 | NodeClaim não cria servidor e o log mostra tipo indisponível | `cax` esgotado nas localizações; ver [costs.md](costs.md#disponibilidade-e-risco-de-custo-2026-10-27) |
 | Apply do `infra` falha no `gateway_sync` | VPN caída ou host key divergente; suba a VPN e rode de novo |
-| `*.devcomm.internal` não resolve | fora da VPN, cliente Tailscale com DNS desligado, ou (WireGuard) sem `/etc/resolver`; teste `dig @10.0.1.2` |
-| Aplicação interna com erro de certificado | CA interna não instalada no dispositivo (ou no Firefox) |
+| `*.int.devcomm.com.br` não resolve | fora da VPN, cliente Tailscale com DNS desligado, ou (WireGuard) sem `/etc/resolver`; teste `dig @10.0.1.2` |
+| Aplicação interna com erro de certificado | `internal-wildcard` não está `READY`, ou o host tem dois níveis abaixo da zona |
 | App não vê o IP real | Traefik fora de nós com `externalTrafficPolicy: Local`, ou origem fora de `network_cidr` |
 | Worker sobe mas o `rke2-agent` não existe | `sha256sum -c` do instalador falhou: `rke2_install_sha256` não corresponde ao `install.sh` da tag de `rke2_version` |
 | Placeholder `Pending` em `capacity` | sem capacidade `cax` numa localização, ou `min_workers` maior que o número de `worker_locations` |

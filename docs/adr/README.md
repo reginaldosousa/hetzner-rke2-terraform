@@ -33,4 +33,5 @@ Para criar um ADR, copie [`template.md`](template.md) para o próximo número li
 | [0024](0024-identity-root-pocketid-provider.md) | Root `identity` com o provider comunitário do Pocket ID | Aceito |
 | [0025](0025-headscale-oidc-vpn.md) | VPN com login OIDC: Headscale no gateway | Aceito (estado do Headscale sobrevive a rebuild: 0026) |
 | [0026](0026-gateway-fast-recovery.md) | Gateway descartável: recuperação rápida em vez de HA | Aceito |
-| [0027](0027-internal-apps-dns.md) | Aplicações internas pela VPN: zona `.internal`, DNS no gateway e LB só privado | Aceito |
+| [0027](0027-internal-apps-dns.md) | Aplicações internas pela VPN: zona `.internal`, DNS no gateway e LB só privado | Aceito (zona e TLS substituídos por 0028) |
+| [0028](0028-internal-apps-public-subdomain.md) | Aplicações internas num subdomínio público com wildcard do Let's Encrypt | Aceito |

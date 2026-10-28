@@ -73,8 +73,8 @@ sequenceDiagram
 
 O `kubeconfig` gerado por `scripts/get-kubeconfig.sh` aponta para `https://10.0.1.2:6443`. O IP está no
 `tls-san` dos masters. Da VPN, o gateway só encaminha SSH (`22`), apiserver (`6443`) e ICMP para a rede, mais
-HTTP(S) para o LB interno. O DNS de `devcomm.internal` é o dnsmasq do próprio gateway (`10.0.1.2:53`), entregue à
-tailnet como split DNS ([ADR 0027](adr/0027-internal-apps-dns.md)).
+HTTP(S) para o LB interno. O DNS de `int.devcomm.com.br` é o dnsmasq do próprio gateway (`10.0.1.2:53`), entregue à
+tailnet como split DNS ([ADR 0027](adr/0027-internal-apps-dns.md), [0028](adr/0028-internal-apps-public-subdomain.md)).
 `kubectl exec`, `logs` e `port-forward` (Grafana, Prometheus) passam pelo apiserver. O SSH nos masters usa as
 host keys de `master_known_hosts` (`scripts/pin-master-host-keys.sh`).
 

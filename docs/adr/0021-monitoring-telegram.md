@@ -42,3 +42,5 @@ membro ou enchesse, se um volume lotasse ou se um workload ficasse reiniciando.
 ## Atualizações
 - **2026-10-27:** O Grafana ganhou Ingress interno em `https://grafana.devcomm.internal`, só pela VPN
   ([0027](0027-internal-apps-dns.md)). O port-forward continua funcionando.
+- **2026-10-28:** O endereço passou a ser `https://grafana.int.devcomm.com.br`, com certificado do Let's Encrypt
+  ([0028](0028-internal-apps-public-subdomain.md)).

@@ -1,6 +1,6 @@
 # 0027. Aplicações internas pela VPN: zona `.internal`, DNS no gateway e LB só privado
 
-- **Status:** Aceito
+- **Status:** Aceito; a zona `.internal` e a CA privada foram substituídas por [0028](0028-internal-apps-public-subdomain.md)
 - **Commits:** `bfb1300`, `2953dc1`, `da33c4c`, `06612f8`
 
 ## Contexto
@@ -67,3 +67,8 @@ então esse TLD nunca vai ser delegado.
   certificado não pedem passo manual.
 - A política cobre Ingress e IngressRoute. Outro tipo de rota (Gateway API, IngressRouteTCP) precisaria entrar
   nela.
+
+## Atualizações
+- **2026-10-28:** A zona passou a ser `int.devcomm.com.br`, com wildcard do Let's Encrypt no lugar da CA
+  privada ([0028](0028-internal-apps-public-subdomain.md)). DNS no gateway, LB só privado, entrypoints e política
+  de admissão continuam como aqui.

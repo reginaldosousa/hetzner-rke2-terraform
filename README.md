@@ -242,10 +242,10 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
 - **Masters' RKE2 config** (Pod Security, etcd snapshots, metrics, OIDC) lives in drop-ins
   under `templates/master/`. After an `infra` apply that changes them, run
   `scripts/sync-masters.sh`: it pushes them and restarts one master at a time.
-- **Internal apps** (ADR 0027): names under `internal_domain` (`devcomm.internal`)
-  resolve only over the VPN, through dnsmasq on the gateway, to a private-only LB.
-  Grafana is at `https://grafana.devcomm.internal`. Each device trusts the internal
-  CA once (docs/operations.md, "Aplicações internas"). Prometheus and Alertmanager
+- **Internal apps** (ADR 0027, 0028): names under `internal_domain` (`int.devcomm.com.br`)
+  resolve only over the VPN, through dnsmasq on the gateway, to a private-only LB,
+  with a Let's Encrypt wildcard. Grafana is at `https://grafana.int.devcomm.com.br`
+  (docs/operations.md, "Aplicações internas"). Prometheus and Alertmanager
   are still reached with `kubectl -n monitoring port-forward`.
 - **Backups**: etcd snapshots every 6 h and Velero daily, 7 days each, in R2, plus
   Headscale's database streamed there by Litestream (ADR 0026).
