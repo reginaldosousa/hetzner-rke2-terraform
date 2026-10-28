@@ -6,9 +6,9 @@
 |---|---|
 | Gateway `udp/51820` | WireGuard: sem chave válida não há resposta. O nftables do gateway (policy drop) descarta o resto |
 | Gateway `tcp/443`, `udp/3478`, `udp/41641` | Headscale (controle, DERP, ACME), STUN e caminho direto do Tailscale. Login só pelo Pocket ID, grupo `vpn` ([ADR 0025](adr/0025-headscale-oidc-vpn.md)) |
-| LB de ingress `80/443` | Traefik; só serve o que existe como Ingress. HTTP vira 308 para HTTPS |
+| LB de ingress `80/443` | Traefik; só serve o que existe como Ingress. HTTP vira 308 para HTTPS. Hosts de `internal_domain` não podem estar nos entrypoints dele (política de admissão, [ADR 0027](adr/0027-internal-apps-dns.md)) |
 | Pocket ID (`auth.devcomm.com.br`) | Login só por passkey; IP do operador (`pocket_id_allowed_cidrs`) até o `/setup` criar o primeiro admin ([ADR 0023](adr/0023-oidc-pocket-id.md)) |
-| Tudo o mais | Nada tem IP público. Da VPN só SSH e API do Kubernetes; etcd e kubelet só pela rede privada |
+| Tudo o mais | Nada tem IP público. Da VPN só SSH, API do Kubernetes, o DNS interno do gateway e HTTP(S) do LB interno (só privado); etcd e kubelet só pela rede privada |
 
 Como a Hetzner não permite firewall em servidores só com rede privada, o isolamento dos masters e workers vem da
 ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-gateway.md)).
@@ -22,7 +22,8 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | RKE2 `agent-token` | user_data dos workers (Secret `karpenter-worker-bootstrap`) | workers. Só permite entrar como agent |
 | Chaves WireGuard | state do `infra`, `/etc/wireguard/wg0.conf`, `wg/` local | gateway e clientes |
 | Host key SSH do gateway | state do `infra` (`tls_private_key.gateway_host`) | gateway; output `gateway_known_hosts` para fixar |
-| Senha admin do Grafana | state do `cluster` (`random_password`) → Secret `monitoring/grafana-admin` | Grafana, acessado por port-forward |
+| Senha admin do Grafana | state do `cluster` (`random_password`) → Secret `monitoring/grafana-admin` | Grafana, acessado pela VPN (`grafana.devcomm.internal`) |
+| Chave da CA interna | Secret `cert-manager/internal-ca` (gerada no cluster, nunca no state) | cert-manager; name constraint na zona interna, então não assina outros nomes ([ADR 0027](adr/0027-internal-apps-dns.md)) |
 | Token Cloudflare (DNS) | token criado pelo `cluster` (`dns-token.tf`) → Secrets do external-dns e do cert-manager | escopo Zone Read + DNS Write só nas zonas de `external_dns_domains` |
 | Credenciais R2 (state) | perfil AWS `r2` local | operador; **fora do CI** |
 | Credenciais R2 (snapshots do etcd) | token criado pelo `cluster` → Secret `kube-system/rke2-etcd-snapshot-s3` | RKE2 nos masters; escopo só no bucket `rke2-etcd-snapshots` |
@@ -60,8 +61,9 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   (`pin-master-host-keys.sh`, `ssh-keyscan` na rede privada) para `master_known_hosts`, e `get-kubeconfig.sh` e
   `sync-masters.sh` também usam `StrictHostKeyChecking=yes`. Depois de trocar um master, rode o pin de novo.
 - **nftables no gateway** além do firewall da Hetzner: a chain `input` (policy drop) só aceita WireGuard, SSH
-  vindo do túnel e HAProxy (`6443`/`9345`) vindo da rede privada ou da VPN. A chain `forward` deixa clientes VPN
-  abrirem conexões para a rede só em SSH (`22`) e apiserver (`6443`), mais ICMP; etcd, kubelet e o resto ficam
+  vindo do túnel, DNS interno (`53`) vindo do túnel e HAProxy (`6443`/`9345`) vindo da rede privada ou da VPN. A
+  chain `forward` deixa clientes VPN abrirem conexões para a rede só em SSH (`22`) e apiserver (`6443`), mais ICMP
+  e HTTP(S) para o LB interno; etcd, kubelet e o resto ficam
   fechados para eles. No sentido contrário nada passa: um pod comprometido não alcança o laptop de um operador.
 - **Instalador do RKE2 fixado**: os nós baixam o `install.sh` da tag de `rke2_version` e só o executam se o
   sha256 bater com `rke2_install_sha256`. O próprio script confere os checksums do tarball da release.
@@ -75,6 +77,9 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   ([ADR 0020](adr/0020-worker-floor-and-node-reboots.md)).
 - **Alertas com dead man's switch**: Telegram para alertas e um ping externo do Watchdog, para que um gateway ou
   Alertmanager fora do ar não passe despercebido ([ADR 0021](adr/0021-monitoring-telegram.md)).
+- **Aplicações internas fora da internet** ([ADR 0027](adr/0027-internal-apps-dns.md)): zona `.internal`
+  (reservada, ninguém registra), LB sem rede pública, entrypoints próprios e uma `ValidatingAdmissionPolicy` que
+  recusa host interno nos entrypoints públicos, para o `Host` forjado no LB público não chegar na aplicação.
 - **PROXY protocol restrito**: o Traefik só aceita o cabeçalho vindo de `network_cidr`, para que ninguém forje
   o IP de origem.
 - **external-dns com escopo**: `domainFilters` é obrigatório (uma lista vazia seria rejeitada), e o registro
@@ -96,6 +101,8 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   `hostNetwork`, que só podem existir no `kube-system`.
 - **Namespaces `privileged`**: `monitoring` (node-exporter) e `velero` (node agent) aceitam `hostPath` e
   `hostNetwork`. Quem pode criar pods neles tem root nos nós. Os dois são gerenciados só pelo Terraform.
+- **CA interna confiada nos dispositivos**: quem lê o Secret `cert-manager/internal-ca` emite certificados
+  aceitos por esses dispositivos, mas só para nomes da zona interna (name constraint crítico).
 - **Snapshots e backups têm todo o conteúdo do cluster**: os buckets `rke2-etcd-snapshots` e `rke2-velero` devem
   ser tratados como sensíveis. Os Secrets estão cifrados no etcd (`secrets-encryption` do RKE2), mas o resto não.
 - **Masters `cax11` (4 GB)**: usavam de 37% a 49% da memória sem carga, antes do node-exporter e dos agentes. O

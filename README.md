@@ -29,7 +29,7 @@ flowchart TB
         workers["Karpenter workers · 10.0.1.x<br/>private only, ≥ 1 in nbg1 and 1 in fsn1"]
     end
     gw -- "kube-apiserver, RKE2 join" --> masters
-    gw -. "VPN clients: only :22 and :6443" .-> workers
+    gw -. "VPN clients: only :22, :6443<br/>and internal apps (:80/:443 on the private LB)" .-> workers
     masters -. "egress: route 0.0.0.0/0 → gateway NAT" .-> gw
     workers -. "egress" .-> gw
     gw -. "R2 (etcd snapshots, Velero, Headscale DB), Telegram, healthchecks.io" .-> ext(("internet"))
@@ -242,8 +242,11 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
 - **Masters' RKE2 config** (Pod Security, etcd snapshots, metrics, OIDC) lives in drop-ins
   under `templates/master/`. After an `infra` apply that changes them, run
   `scripts/sync-masters.sh`: it pushes them and restarts one master at a time.
-- **Monitoring**: Grafana and Prometheus have no Ingress; use
-  `kubectl -n monitoring port-forward` over the VPN (see docs/operations.md).
+- **Internal apps** (ADR 0027): names under `internal_domain` (`devcomm.internal`)
+  resolve only over the VPN, through dnsmasq on the gateway, to a private-only LB.
+  Grafana is at `https://grafana.devcomm.internal`. Each device trusts the internal
+  CA once (docs/operations.md, "Aplicações internas"). Prometheus and Alertmanager
+  are still reached with `kubectl -n monitoring port-forward`.
 - **Backups**: etcd snapshots every 6 h and Velero daily, 7 days each, in R2, plus
   Headscale's database streamed there by Litestream (ADR 0026).
   Restore runbooks are in docs/operations.md.

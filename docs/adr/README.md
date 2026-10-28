@@ -27,9 +27,10 @@ Para criar um ADR, copie [`template.md`](template.md) para o próximo número li
 | [0018](0018-pod-security-baseline.md) | Pod Security `baseline` por padrão, com drop-ins do RKE2 sincronizados nos masters | Aceito |
 | [0019](0019-etcd-snapshots-r2.md) | Snapshots do etcd no Cloudflare R2 | Aceito |
 | [0020](0020-worker-floor-and-node-reboots.md) | Mínimo de workers com pods placeholder e reboots automáticos com kured | Aceito |
-| [0021](0021-monitoring-telegram.md) | Monitoramento com kube-prometheus-stack e alertas no Telegram | Aceito |
+| [0021](0021-monitoring-telegram.md) | Monitoramento com kube-prometheus-stack e alertas no Telegram | Aceito (Grafana pela VPN: 0027) |
 | [0022](0022-velero-r2.md) | Backup de objetos e volumes com Velero no R2 | Aceito |
 | [0023](0023-oidc-pocket-id.md) | Login OIDC no kubectl com Pocket ID | Aceito |
 | [0024](0024-identity-root-pocketid-provider.md) | Root `identity` com o provider comunitário do Pocket ID | Aceito |
 | [0025](0025-headscale-oidc-vpn.md) | VPN com login OIDC: Headscale no gateway | Aceito (estado do Headscale sobrevive a rebuild: 0026) |
 | [0026](0026-gateway-fast-recovery.md) | Gateway descartável: recuperação rápida em vez de HA | Aceito |
+| [0027](0027-internal-apps-dns.md) | Aplicações internas pela VPN: zona `.internal`, DNS no gateway e LB só privado | Aceito |

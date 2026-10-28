@@ -44,6 +44,7 @@ Os IPs fixos são calculados com `cidrhost` em `terraform/infra/network.tf`:
 | `10.0.1.2` | gateway | também é o endpoint do control plane (`local.control_plane_ip`) |
 | `10.0.1.11`–`.13` | master-1..3 | `local.master_ips`, que gera o backend do HAProxy |
 | `10.0.1.x` | workers | DHCP, criados pelo Karpenter |
+| `10.0.1.254` | LB interno (só privado) | `local.internal_ingress_ip` = `cidrhost(subnet_cidr, -2)`, o topo da subnet, longe do DHCP; os nomes de `internal_domain` apontam para ele ([ADR 0027](adr/0027-internal-apps-dns.md)) |
 | `10.200.0.1` | gateway (`wg0`) | |
 | `10.200.0.N` | clientes VPN | `N` fixo por cliente em `vpn_clients` |
 | `10.42.0.0/16`, `10.43.0.0/16` | pods / services do RKE2 | as variáveis validam que nada sobrepõe estas faixas |
@@ -67,11 +68,13 @@ sequenceDiagram
     L->>G: kubectl → HAProxy 10.0.1.2:6443
     G->>M: :6443 (master saudável)
     L->>M: ssh :22 (WireGuard roteado; tailnet com SNAT para 10.0.1.2)
-    Note over G,M: da VPN, só :22, :6443 e ICMP passam para a rede
+    Note over G,M: da VPN, só :22, :6443 e ICMP passam para a rede,<br/>mais :80/:443 para o LB interno
 ```
 
 O `kubeconfig` gerado por `scripts/get-kubeconfig.sh` aponta para `https://10.0.1.2:6443`. O IP está no
-`tls-san` dos masters. Da VPN, o gateway só encaminha SSH (`22`), apiserver (`6443`) e ICMP para a rede.
+`tls-san` dos masters. Da VPN, o gateway só encaminha SSH (`22`), apiserver (`6443`) e ICMP para a rede, mais
+HTTP(S) para o LB interno. O DNS de `devcomm.internal` é o dnsmasq do próprio gateway (`10.0.1.2:53`), entregue à
+tailnet como split DNS ([ADR 0027](adr/0027-internal-apps-dns.md)).
 `kubectl exec`, `logs` e `port-forward` (Grafana, Prometheus) passam pelo apiserver. O SSH nos masters usa as
 host keys de `master_known_hosts` (`scripts/pin-master-host-keys.sh`).
 

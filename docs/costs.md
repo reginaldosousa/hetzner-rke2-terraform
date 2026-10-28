@@ -12,10 +12,11 @@ Hetzner cobra por hora até o teto mensal, e os preços mudam: revise esta pági
 | Masters `cax11` | `hcloud_server.master` | 3 | US$ 6,99 | US$ 20,97 |
 | IPv4 primário do gateway | `hcloud_primary_ip.gateway` | 1 | US$ 0,60 | US$ 0,60 |
 | LB de ingress `lb11` (IPs inclusos) | criado pelo CCM ([ADR 0011](adr/0011-ingress-traefik-hetzner-lb.md)) | 1 | US$ 7,89 | US$ 7,89 |
+| LB interno `lb11`, só privado | criado pelo CCM ([ADR 0027](adr/0027-internal-apps-dns.md)) | 1 | US$ 7,89 | US$ 7,89 |
 | Piso de workers `cax11` (`min_workers = 2`) | pods placeholder ([ADR 0020](adr/0020-worker-floor-and-node-reboots.md)) | 2 | US$ 6,99 | US$ 13,98 |
 | Volumes do Prometheus (20 GB) e do Alertmanager (10 GB) | `monitoring.tf` ([ADR 0021](adr/0021-monitoring-telegram.md)) | 30 GB | US$ 0,0767/GB | US$ 2,30 |
 | Volume do Pocket ID (SQLite) | `pocket-id.tf` ([ADR 0023](adr/0023-oidc-pocket-id.md)) | 10 GB | US$ 0,0767/GB | US$ 0,77 |
-| **Subtotal fixo** | | | | **US$ 53,50** |
+| **Subtotal fixo** | | | | **US$ 61,39** |
 
 Sem custo: rede privada, subnet, rotas, firewall, placement group, chave SSH e IPv6 primário.
 
@@ -33,11 +34,11 @@ Sem custo: rede privada, subnet, rotas, firewall, placement group, chave SSH e I
 
 | Cenário | Composição | Total/mês |
 |---|---|---|
-| Mínimo / **hoje (2026-10-27)** | fixo, com os 2 workers do piso (`default-dfl4l` em fsn1, `default-lpclv` em nbg1) | **US$ 53,50** |
-| Com `min_workers = 1` | fixo − 1 worker; o ingress volta a depender de um nó só | US$ 46,51 |
-| Masters `cax21` (decisão adiada) | fixo + 3 × US$ 5,50 | US$ 70,00 |
-| Teto do NodePool, mais barato | fixo − piso + 32 vCPU como 2× `cax41` | US$ 136,50 |
-| Teto do NodePool, mais caro | fixo − piso + 32 vCPU como 16× `cax11` | US$ 151,36 |
+| Mínimo / **hoje (2026-10-27)** | fixo, com os 2 workers do piso (`default-dfl4l` em fsn1, `default-lpclv` em nbg1) | **US$ 61,39** |
+| Com `min_workers = 1` | fixo − 1 worker; o ingress volta a depender de um nó só | US$ 54,40 |
+| Masters `cax21` (decisão adiada) | fixo + 3 × US$ 5,50 | US$ 77,89 |
+| Teto do NodePool, mais barato | fixo − piso + 32 vCPU como 2× `cax41` | US$ 144,39 |
+| Teto do NodePool, mais caro | fixo − piso + 32 vCPU como 16× `cax11` | US$ 159,25 |
 
 O teto vem de `nodepool_cpu_limit = 32`. Aumentar esse limite aumenta o gasto máximo possível. A consolidação
 (`WhenEmptyOrUnderutilized`, 5 min) remove workers ociosos acima do piso, então o custo real fica perto do mínimo

@@ -38,3 +38,7 @@ membro ou enchesse, se um volume lotasse ou se um workload ficasse reiniciando.
 - Sem `deadmans_switch_url`, a queda do gateway continua invisível até alguém notar.
 - O gateway em si não é monitorado por dentro (ele não é um nó). A queda dele aparece pelo dead man's switch e
   pela falha do `kubectl`.
+
+## Atualizações
+- **2026-10-27:** O Grafana ganhou Ingress interno em `https://grafana.devcomm.internal`, só pela VPN
+  ([0027](0027-internal-apps-dns.md)). O port-forward continua funcionando.

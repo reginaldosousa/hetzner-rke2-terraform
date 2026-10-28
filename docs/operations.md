@@ -231,7 +231,7 @@ masters já o têm no `config.yaml`.
 ## Destruir tudo
 
 ```bash
-kubectl -n kube-system delete svc rke2-traefik   # remove o LB criado pelo CCM (senão ele continua cobrando)
+kubectl -n kube-system delete svc rke2-traefik rke2-traefik-internal   # remove os LBs criados pelo CCM (senão continuam cobrando)
 kubectl delete nodepool default                  # Karpenter remove os workers
 terraform -chdir=terraform/cluster destroy
 terraform -chdir=terraform/infra apply -var protect=false
@@ -258,9 +258,45 @@ Alertas vão para o Telegram (`telegram_chat_id`), e o `Watchdog` para o dead ma
 
 ```bash
 kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d; echo
-kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80        # http://localhost:3000
+# Grafana: https://grafana.devcomm.internal (VPN + CA interna, ver "Aplicações internas")
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093      # silenciar alertas
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090        # Status > Targets
+```
+
+## Aplicações internas
+
+Nomes em `internal_domain` (`devcomm.internal`) só existem pela VPN: o dnsmasq do gateway responde qualquer nome
+da zona com o LB interno `10.0.1.254`, e o certificado vem da CA privada ([ADR 0027](adr/0027-internal-apps-dns.md)).
+
+**Confiar na CA, uma vez por dispositivo.** A raiz só vale para a zona (name constraint):
+
+```bash
+kubectl -n cert-manager get secret internal-ca -o jsonpath='{.data.ca\.crt}' | base64 -d > internal-ca.crt
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain internal-ca.crt   # macOS
+# Linux: sudo cp internal-ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates
+# Firefox usa o próprio repositório: Configurações > Certificados > Importar
+```
+
+**DNS.** Na tailnet vem sozinho (split DNS do Headscale; o cliente precisa aceitar DNS, o padrão dos apps). No
+WireGuard de break-glass, configure o resolver da zona:
+
+```bash
+sudo mkdir -p /etc/resolver && echo 'nameserver 10.0.1.2' | sudo tee /etc/resolver/devcomm.internal   # macOS
+dig +short grafana.devcomm.internal @10.0.1.2                                                         # 10.0.1.254
+```
+
+**Publicar uma aplicação** com um Ingress que tenha as duas anotações. Sem a de entrypoint, a política
+`internal-hosts-on-internal-entrypoints` recusa o Ingress, porque o host ficaria no LB público:
+
+```yaml
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: internal
+    cert-manager.io/cluster-issuer: internal-ca
+spec:
+  ingressClassName: traefik
+  rules: [{host: app.devcomm.internal, http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: app, port: {number: 80}}}}]}}]
+  tls: [{hosts: [app.devcomm.internal], secretName: app-tls}]
 ```
 
 ## Troubleshooting rápido
@@ -272,6 +308,8 @@ kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090    
 | NodeClaim travada | `kubectl get hcloudnodeclass default` precisa estar `READY=True`; capacidade esgotada na localização |
 | NodeClaim não cria servidor e o log mostra tipo indisponível | `cax` esgotado nas localizações; ver [costs.md](costs.md#disponibilidade-e-risco-de-custo-2026-10-27) |
 | Apply do `infra` falha no `gateway_sync` | VPN caída ou host key divergente; suba a VPN e rode de novo |
+| `*.devcomm.internal` não resolve | fora da VPN, cliente Tailscale com DNS desligado, ou (WireGuard) sem `/etc/resolver`; teste `dig @10.0.1.2` |
+| Aplicação interna com erro de certificado | CA interna não instalada no dispositivo (ou no Firefox) |
 | App não vê o IP real | Traefik fora de nós com `externalTrafficPolicy: Local`, ou origem fora de `network_cidr` |
 | Worker sobe mas o `rke2-agent` não existe | `sha256sum -c` do instalador falhou: `rke2_install_sha256` não corresponde ao `install.sh` da tag de `rke2_version` |
 | Placeholder `Pending` em `capacity` | sem capacidade `cax` numa localização, ou `min_workers` maior que o número de `worker_locations` |
