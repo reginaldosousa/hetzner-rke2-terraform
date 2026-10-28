@@ -180,15 +180,13 @@ resource "helm_release" "kube_prometheus_stack" {
       ingress = {
         enabled          = true
         ingressClassName = "traefik"
+        # TLS from the zone's wildcard in Traefik's default store
+        # (internal-apps.tf), so no tls block or issuer here.
         annotations = {
           "traefik.ingress.kubernetes.io/router.entrypoints" = "internal"
-          "cert-manager.io/cluster-issuer"                   = "internal-ca"
+          "traefik.ingress.kubernetes.io/router.tls"         = "true"
         }
         hosts = ["grafana.${local.internal_domain}"]
-        tls = [{
-          secretName = "grafana-tls"
-          hosts      = ["grafana.${local.internal_domain}"]
-        }]
       }
     }
   })]
