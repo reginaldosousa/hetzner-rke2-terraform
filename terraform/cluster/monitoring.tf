@@ -166,12 +166,29 @@ resource "helm_release" "kube_prometheus_stack" {
       }
     }
 
-    # Reached with kubectl port-forward over the VPN; no Ingress.
+    # Internal app (docs/adr/0027): reachable only over the VPN, at
+    # https://grafana.<internal domain>.
     grafana = {
       admin = {
         existingSecret = kubernetes_secret_v1.grafana_admin.metadata[0].name
         userKey        = "admin-user"
         passwordKey    = "admin-password"
+      }
+      "grafana.ini" = {
+        server = { root_url = "https://grafana.${local.internal_domain}" }
+      }
+      ingress = {
+        enabled          = true
+        ingressClassName = "traefik"
+        annotations = {
+          "traefik.ingress.kubernetes.io/router.entrypoints" = "internal"
+          "cert-manager.io/cluster-issuer"                   = "internal-ca"
+        }
+        hosts = ["grafana.${local.internal_domain}"]
+        tls = [{
+          secretName = "grafana-tls"
+          hosts      = ["grafana.${local.internal_domain}"]
+        }]
       }
     }
   })]
