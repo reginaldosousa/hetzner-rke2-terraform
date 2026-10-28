@@ -22,7 +22,8 @@ basics. To me, "production-ready" means:
 
 The result is an RKE2 cluster on Hetzner Cloud, entirely in Terraform, with a fixed cost of **about $61 a month**.
 In this article I explain how it is put together and, above all, the pitfalls that cost me time, because those are
-what separate "it works" from "you can run production on it".
+what separate "it works" from "you can run production on it". All the code is open on GitHub:
+[github.com/reginaldosousa/hetzner-rke2-terraform](https://github.com/reginaldosousa/hetzner-rke2-terraform).
 
 ## The build
 
@@ -221,7 +222,7 @@ internal tool.
 
 If I had to sum it up in one lesson: **low cost and production are not opposites, as long as every decision is
 written down**. Every choice in this project, along with the alternatives I ruled out, is documented as an ADR
-(Architecture Decision Record) next to the code.
+(Architecture Decision Record) next to the code, at [github.com/reginaldosousa/hetzner-rke2-terraform](https://github.com/reginaldosousa/hetzner-rke2-terraform).
 
 What about you: have you run Kubernetes outside the big clouds? Which pitfall cost you the most time?
 

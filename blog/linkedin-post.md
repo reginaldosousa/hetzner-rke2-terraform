@@ -32,6 +32,7 @@ O mais interessante não foi o preço, foram as pegadinhas. Algumas que conto no
 Custo baixo e produção não são opostos, desde que cada decisão fique registrada.
 
 Artigo completo: [link PT]
+Código: https://github.com/reginaldosousa/hetzner-rke2-terraform
 
 Já rodou Kubernetes fora das nuvens grandes? Qual pegadinha te custou mais tempo?
 
@@ -63,6 +64,7 @@ The price wasn't the most interesting part. The pitfalls were. A few I cover in 
 Low cost and production are not opposites, as long as every decision is written down.
 
 Full article: [link EN]
+Code: https://github.com/reginaldosousa/hetzner-rke2-terraform
 
 Have you run Kubernetes outside the big clouds? Which pitfall cost you the most time?
 
