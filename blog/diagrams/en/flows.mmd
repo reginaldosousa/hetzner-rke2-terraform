@@ -1,0 +1,19 @@
+flowchart LR
+    %% Mermaid stacks subgraphs bottom-up: the last one declared ends up on top.
+    subgraph egress["4 · Node egress"]
+        direction LR
+        n["private node"] --> rt["router .1<br/>(route 0.0.0.0/0)"] --> nat["gateway<br/>nftables NAT"] --> net(("internet"))
+    end
+    subgraph admin["3 · Operator access"]
+        direction LR
+        o["operator"] --> vpn["VPN on the gateway"] --> hp["HAProxy :6443"] --> api["apiserver<br/>(3 masters)"]
+    end
+    subgraph internal["2 · Internal tools"]
+        direction LR
+        oi["operator on the VPN"] -- "split DNS" --> dns["dnsmasq on the gateway<br/>*.int.devcomm.com.br"]
+        oi --> lbi["internal LB<br/>10.0.1.254"] --> ti["Traefik<br/>(internal entrypoint)"] --> graf["Grafana"]
+    end
+    subgraph ingress["1 · User traffic"]
+        direction LR
+        u["client"] --> lb["LB lb11"] --> t["Traefik<br/>(externalTrafficPolicy: Local)"] --> app["application pod"]
+    end

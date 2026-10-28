@@ -225,6 +225,7 @@ registrada**. Todas as escolhas deste projeto, com as alternativas descartadas, 
 E você, já rodou Kubernetes fora das nuvens grandes? Qual foi a pegadinha que mais te custou tempo?
 
 <!--
+Versão em inglês: kubernetes-production-ready-low-cost.en.md (diagramas em blog/diagrams/en/); mantenha as duas em dia.
 Formato: escrito para Medium e LinkedIn, que não renderizam tabelas Markdown; por isso só listas.
 Diagramas: as fontes Mermaid estão em blog/diagrams/. Para renderizar de novo:
   for d in arquitetura fluxos terraform; do

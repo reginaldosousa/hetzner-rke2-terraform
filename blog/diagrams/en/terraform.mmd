@@ -1,0 +1,13 @@
+flowchart LR
+    infra["terraform/infra<br/>Hetzner API<br/>(no VPN)"]
+    cluster["terraform/cluster<br/>Kubernetes + Cloudflare<br/>(needs the VPN)"]
+    setup["admin setup<br/>in Pocket ID<br/>+ API key"]
+    identity["terraform/identity<br/>Pocket ID API"]
+    r2[("R2 rke2-tfstate<br/>use_lockfile")]
+
+    infra -- "1" --> cluster -- "2" --> setup -- "3" --> identity
+    identity -. "oidc_client_id<br/>→ apply infra + sync-masters" .-> infra
+    infra <--> r2
+    cluster <--> r2
+    identity <--> r2
+    cluster -. "terraform_remote_state" .-> infra

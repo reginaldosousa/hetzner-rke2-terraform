@@ -1,0 +1,33 @@
+flowchart TB
+    op["Operator<br/>(laptop)"]
+    user["Users"]
+    cf["Cloudflare DNS<br/>+ Let's Encrypt"]
+
+    op -- "VPN: Headscale (tcp/443)<br/>or WireGuard (udp/51820)" --> gw
+    user -- "HTTPS" --> lb["LB lb11<br/>(created by the CCM)"]
+    user -. "DNS" .-> cf
+
+    subgraph hetzner["Hetzner Cloud · private network 10.0.0.0/16 (no public IP on nodes)"]
+        gw["gateway 10.0.1.2<br/>reserved public IP<br/>NAT · VPN · HAProxy :6443/:9345<br/>internal zone DNS"]
+        lbi["internal LB lb11<br/>10.0.1.254, no public network"]
+        subgraph cp["control plane"]
+            m1["master-1<br/>10.0.1.11"]
+            m2["master-2<br/>10.0.1.12"]
+            m3["master-3<br/>10.0.1.13"]
+        end
+        subgraph wk["Karpenter workers (cax11)"]
+            w1["worker nbg1"]
+            w2["worker fsn1"]
+            w3["... on demand"]
+        end
+    end
+
+    gw -- "kubectl, node joins" --> cp
+    lb -- "PROXY protocol" --> wk
+    gw -- "VPN → :80/:443<br/>(*.int.devcomm.com.br)" --> lbi
+    lbi -- "internal entrypoints" --> wk
+    wk -. "egress via NAT" .-> gw
+    cp -. "egress via NAT" .-> gw
+
+    r2[("Cloudflare R2<br/>state · etcd · Velero · Headscale")]
+    gw -. "internet" .-> r2
