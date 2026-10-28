@@ -247,15 +247,12 @@ variable "headscale_oidc_client_secret" {
 }
 
 variable "internal_domain" {
-  description = "Private DNS zone for apps reached only over the VPN (docs/adr/0027). The gateway answers every name under it with the internal ingress LB's IP. Empty means <cluster_name>.internal."
+  description = "DNS zone for apps reached only over the VPN, e.g. int.example.com (docs/adr/0027, 0028). The gateway answers every name under it with the internal ingress LB's IP; public DNS has no records in it. It must be under one of terraform/cluster's external_dns_domains, so Let's Encrypt can issue its wildcard over DNS-01."
   type        = string
-  default     = ""
 
   validation {
-    # .internal is reserved by ICANN for private use: nobody can register it,
-    # so a name can never resolve to someone else's server off the VPN.
-    condition     = var.internal_domain == "" || can(regex("^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+internal$", var.internal_domain))
-    error_message = "internal_domain must be a DNS name ending in .internal, e.g. example.internal."
+    condition     = can(regex("^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$", var.internal_domain))
+    error_message = "internal_domain must be a lowercase DNS name, e.g. int.example.com."
   }
 }
 

@@ -35,7 +35,7 @@ locals {
       oidc_issuer_url = var.oidc_issuer_url
       oidc_client_id  = var.headscale_oidc_client_id
       vpn_group       = var.headscale_vpn_group
-      internal_domain = local.internal_domain
+      internal_domain = var.internal_domain
       gateway_ip      = local.gateway_ip
     })
     "/etc/headscale/policy.hujson" = templatefile("${path.module}/templates/gateway/headscale-policy.hujson.tftpl", {
@@ -104,7 +104,7 @@ locals {
       master_ips = local.master_ips
     })
     "/etc/dnsmasq-internal.conf" = templatefile("${path.module}/templates/gateway/internal-dns.conf.tftpl", {
-      domain     = local.internal_domain
+      domain     = var.internal_domain
       gateway_ip = local.gateway_ip
       ingress_ip = local.internal_ingress_ip
     })

@@ -113,7 +113,7 @@ output "headscale_url" {
 
 output "internal_domain" {
   description = "Private DNS zone answered by dnsmasq on the gateway for VPN clients (docs/adr/0027)."
-  value       = local.internal_domain
+  value       = var.internal_domain
 }
 
 output "internal_ingress_ip" {
