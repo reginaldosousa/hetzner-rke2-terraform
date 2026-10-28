@@ -54,12 +54,16 @@ policy:
   mode: file
   path: /etc/headscale/policy.hujson
 
-# Leave clients' DNS alone: the tailnet only carries the routes to the cluster.
+# Leave clients' DNS alone, except for the internal domain, which goes to
+# dnsmasq on the gateway (split DNS, docs/adr/0027).
 dns:
   magic_dns: false
   override_local_dns: false
   nameservers:
     global: []
+    split:
+      ${internal_domain}:
+        - ${gateway_ip}
 
 oidc:
   only_start_if_oidc_is_available: false

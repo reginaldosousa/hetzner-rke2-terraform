@@ -15,6 +15,7 @@ packages:
   - wireguard
   - nftables
   - haproxy
+  - dnsmasq-base
 
 write_files:
   - path: /etc/sysctl.d/99-forwarding.conf
@@ -35,4 +36,5 @@ runcmd:
   - systemctl enable --now nftables
   - systemctl enable --now wg-quick@wg0
   - systemctl enable haproxy && systemctl restart haproxy
+  - systemctl daemon-reload && systemctl enable --now internal-dns
   - if [ -f /usr/local/sbin/headscale-install.sh ]; then bash /usr/local/sbin/headscale-install.sh; fi

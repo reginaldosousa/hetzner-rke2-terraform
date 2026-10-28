@@ -110,3 +110,13 @@ output "headscale_url" {
   description = "Headscale's URL (empty when not configured); terraform/identity points its OIDC client's callback here."
   value       = var.headscale_hostname == "" ? "" : "https://${var.headscale_hostname}"
 }
+
+output "internal_domain" {
+  description = "Private DNS zone answered by dnsmasq on the gateway for VPN clients (docs/adr/0027)."
+  value       = local.internal_domain
+}
+
+output "internal_ingress_ip" {
+  description = "Private IP the CCM gives the internal (private-only) ingress LB; every name under internal_domain resolves to it."
+  value       = local.internal_ingress_ip
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Push the gateway's config (WireGuard peers, nftables NAT, HAProxy, Headscale) in place,
+# Push the gateway's config (WireGuard peers, nftables NAT, HAProxy, internal DNS, Headscale) in place,
 # instead of rebuilding the server. `terraform apply` runs this automatically
 # (terraform_data.gateway_sync); run it by hand to check for drift.
 # Requires the WireGuard tunnel to be up.
@@ -98,6 +98,12 @@ CHANGED=("$@")
 has /etc/nftables.conf       && nft -c -f $stage/nftables.conf
 has /etc/haproxy/haproxy.cfg && haproxy -q -c -f $stage/haproxy.cfg
 has /etc/wireguard/wg0.conf  && wg-quick strip $stage/wg0.conf >/dev/null
+# Gateways built before the internal DNS existed lack dnsmasq. dnsmasq-base is
+# only the binary (no service), so installing it changes nothing yet.
+if has /etc/dnsmasq-internal.conf; then
+  command -v dnsmasq >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -q dnsmasq-base >/dev/null
+  dnsmasq --test --conf-file=$stage/dnsmasq-internal.conf
+fi
 # Headscale's keys only ever come from Terraform (docs/adr/0026). A live key
 # that differs means it was never imported: replacing it would make every
 # client re-register, so stop instead of rotating it.
@@ -125,17 +131,27 @@ if has /etc/haproxy/haproxy.cfg; then
   install -m 600 $stage/haproxy.cfg /etc/haproxy/haproxy.cfg && systemctl reload haproxy
   echo "activated  /etc/haproxy/haproxy.cfg (graceful reload)"
 fi
+# Internal DNS (docs/adr/0027): dnsmasq has no reload for its config file.
+dns_restart=false
 # Headscale (docs/adr/0025). The installer pins the packages, fixes the file
 # owners and restarts it; a policy-only change is a SIGHUP reload.
 hs_restart=false
 for path in "${CHANGED[@]}"; do
   case "$path" in
+    /etc/dnsmasq-internal.conf|/etc/systemd/system/internal-dns.service)
+      install -m 600 "$stage/$(basename "$path")" "$path"
+      dns_restart=true
+      ;;
     /etc/headscale/*|/var/lib/headscale/*|/usr/local/sbin/*|/etc/systemd/system/*)
       install -D -m 600 "$stage/$(basename "$path")" "$path"
       [ "$path" = /etc/headscale/policy.hujson ] || hs_restart=true
       ;;
   esac
 done
+if $dns_restart; then
+  systemctl daemon-reload && systemctl enable -q internal-dns && systemctl restart internal-dns
+  echo "activated  internal DNS (dnsmasq restarted)"
+fi
 if $hs_restart; then
   bash /usr/local/sbin/headscale-install.sh
   for _ in $(seq 30); do headscale users list >/dev/null 2>&1 && break; sleep 2; done

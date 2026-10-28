@@ -1,0 +1,14 @@
+# Internal DNS (docs/adr/0027): every name under ${domain} is the private-only
+# ingress LB. Authoritative for that zone only: no upstream, so it is not a
+# resolver for anything else (other queries get REFUSED). nftables admits
+# port 53 from the VPN interfaces only.
+listen-address=${gateway_ip}
+# The private IP arrives over DHCP, possibly after dnsmasq starts.
+bind-dynamic
+no-resolv
+no-hosts
+local=/${domain}/
+address=/${domain}/${ingress_ip}
+user=nobody
+group=nogroup
+pid-file=

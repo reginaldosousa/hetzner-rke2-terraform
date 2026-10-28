@@ -7,3 +7,4 @@ oidc_issuer_url = "https://auth.example.com" # Pocket ID, deployed by terraform/
 # cluster_name = "rke2"
 # location     = "nbg1"
 # vpn_clients  = { laptop = 10, ci = 11 }   # name => fixed host number in vpn_cidr
+# internal_domain = "example.internal"     # VPN-only apps (docs/adr/0027); default <cluster_name>.internal

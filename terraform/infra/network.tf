@@ -4,6 +4,11 @@ locals {
   # kube-apiserver + RKE2 join endpoint: HAProxy on the gateway (no paid LB).
   control_plane_ip = local.gateway_ip
   master_ips       = [for i in range(3) : cidrhost(var.subnet_cidr, 11 + i)]
+  # Private-only ingress LB for internal apps (docs/adr/0027), created by the
+  # CCM with this address. The top of the subnet, because servers attached
+  # without an IP (Karpenter workers) take the lowest free ones.
+  internal_ingress_ip = cidrhost(var.subnet_cidr, -2)
+  internal_domain     = var.internal_domain != "" ? var.internal_domain : "${var.cluster_name}.internal"
 
   # Hetzner's virtual router: first address of the whole network. Private-only
   # servers send their default route here; the network route below then

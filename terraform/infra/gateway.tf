@@ -35,9 +35,13 @@ locals {
       oidc_issuer_url = var.oidc_issuer_url
       oidc_client_id  = var.headscale_oidc_client_id
       vpn_group       = var.headscale_vpn_group
+      internal_domain = local.internal_domain
+      gateway_ip      = local.gateway_ip
     })
     "/etc/headscale/policy.hujson" = templatefile("${path.module}/templates/gateway/headscale-policy.hujson.tftpl", {
       network_cidr = var.network_cidr
+      gateway_ip   = local.gateway_ip
+      ingress_ip   = local.internal_ingress_ip
     })
     "/etc/headscale/oidc_client_secret" = var.headscale_oidc_client_secret
     # Headscale's own file format; it trims surrounding whitespace on read.
@@ -92,11 +96,19 @@ locals {
       vpn_port     = var.vpn_port
       headscale    = local.headscale
       tailnet_cidr = local.tailnet_cidr
+      gateway_ip   = local.gateway_ip
+      ingress_ip   = local.internal_ingress_ip
     })
     "/etc/haproxy/haproxy.cfg" = templatefile("${path.module}/templates/gateway/haproxy.cfg.tftpl", {
       gateway_ip = local.gateway_ip
       master_ips = local.master_ips
     })
+    "/etc/dnsmasq-internal.conf" = templatefile("${path.module}/templates/gateway/internal-dns.conf.tftpl", {
+      domain     = local.internal_domain
+      gateway_ip = local.gateway_ip
+      ingress_ip = local.internal_ingress_ip
+    })
+    "/etc/systemd/system/internal-dns.service" = file("${path.module}/templates/gateway/internal-dns.service")
   })
 }
 

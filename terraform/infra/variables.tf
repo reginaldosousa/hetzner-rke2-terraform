@@ -246,6 +246,19 @@ variable "headscale_oidc_client_secret" {
   sensitive   = true
 }
 
+variable "internal_domain" {
+  description = "Private DNS zone for apps reached only over the VPN (docs/adr/0027). The gateway answers every name under it with the internal ingress LB's IP. Empty means <cluster_name>.internal."
+  type        = string
+  default     = ""
+
+  validation {
+    # .internal is reserved by ICANN for private use: nobody can register it,
+    # so a name can never resolve to someone else's server off the VPN.
+    condition     = var.internal_domain == "" || can(regex("^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+internal$", var.internal_domain))
+    error_message = "internal_domain must be a DNS name ending in .internal, e.g. example.internal."
+  }
+}
+
 variable "headscale_vpn_group" {
   description = "Pocket ID group whose members may log in to the tailnet."
   type        = string

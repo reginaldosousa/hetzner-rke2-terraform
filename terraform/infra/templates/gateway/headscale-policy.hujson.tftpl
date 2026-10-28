@@ -21,5 +21,17 @@
       "dst": ["${network_cidr}"],
       "ip": ["tcp:22", "tcp:6443", "icmp:*"],
     },
+    // Internal apps (docs/adr/0027): the gateway's DNS and the private-only
+    // ingress LB.
+    {
+      "src": ["autogroup:member"],
+      "dst": ["${gateway_ip}/32"],
+      "ip": ["tcp:53", "udp:53"],
+    },
+    {
+      "src": ["autogroup:member"],
+      "dst": ["${ingress_ip}/32"],
+      "ip": ["tcp:80", "tcp:443"],
+    },
   ],
 }

@@ -1,0 +1,14 @@
+# dnsmasq-base's binary with our own unit: the dnsmasq package's service would
+# also register itself with resolvconf and listen beyond the private IP.
+[Unit]
+Description=Internal DNS for VPN clients (docs/adr/0027)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStartPre=/usr/sbin/dnsmasq --test --conf-file=/etc/dnsmasq-internal.conf
+ExecStart=/usr/sbin/dnsmasq --keep-in-foreground --conf-file=/etc/dnsmasq-internal.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

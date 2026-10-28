@@ -27,6 +27,8 @@ table inet filter {
     iifname { ${vpn_ifaces} } tcp dport 22 accept
     # HAProxy: kubectl over the VPN, node joins from the private network.
     ip saddr { ${network_cidr}, ${vpn_cidrs} } tcp dport { 6443, 9345 } accept
+    # dnsmasq (internal-dns.service): names under the internal domain (docs/adr/0027).
+    iifname { ${vpn_ifaces} } ip daddr ${gateway_ip} meta l4proto { tcp, udp } th dport 53 accept
   }
 
   chain forward {
@@ -37,6 +39,8 @@ table inet filter {
     # and everything else stay closed to VPN clients.
     iifname { ${vpn_ifaces} } ip daddr ${network_cidr} tcp dport { 22, 6443 } accept
     iifname { ${vpn_ifaces} } ip daddr ${network_cidr} meta l4proto icmp accept
+    # Internal apps: only the private-only ingress LB, only HTTP(S).
+    iifname { ${vpn_ifaces} } ip daddr ${ingress_ip} tcp dport { 80, 443 } accept
     # Internet egress only: nodes (and the pods behind them) must not open
     # connections to VPN clients, i.e. to operators' machines.
     ip saddr ${network_cidr} ip daddr != { ${vpn_cidrs} } accept
