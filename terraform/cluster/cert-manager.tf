@@ -35,18 +35,16 @@ resource "helm_release" "cert_manager" {
   })]
 }
 
-# Let's Encrypt staging + prod ClusterIssuers and the internal CA
-# (docs/adr/0027) as a local chart: the CRDs only exist once cert-manager is
-# installed, which kubernetes_manifest can't plan for.
+# Let's Encrypt staging + prod ClusterIssuers as a local chart: the CRDs only
+# exist once cert-manager is installed, which kubernetes_manifest can't plan for.
 resource "helm_release" "cluster_issuers" {
   name      = "cluster-issuers"
   namespace = kubernetes_namespace_v1.cert_manager.metadata[0].name
   chart     = "${path.module}/charts/cluster-issuers"
 
   values = [yamlencode({
-    email          = var.acme_email
-    dnsZones       = var.external_dns_domains
-    internalDomain = local.infra.internal_domain
+    email    = var.acme_email
+    dnsZones = var.external_dns_domains
     apiTokenSecret = {
       name = kubernetes_secret_v1.cert_manager_cloudflare.metadata[0].name
       key  = "apiToken"

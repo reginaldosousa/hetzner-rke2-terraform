@@ -9,6 +9,28 @@ locals {
   internal_entrypoints = ["internal", "internal-web"]
 }
 
+# Let's Encrypt wildcard for the zone, in Traefik's default TLS store
+# (docs/adr/0028). A local chart, like the issuers it depends on.
+resource "helm_release" "internal_tls" {
+  name      = "internal-tls"
+  namespace = "kube-system"
+  chart     = "${path.module}/charts/internal-tls"
+
+  values = [yamlencode({
+    internalDomain = local.internal_domain
+  })]
+
+  lifecycle {
+    precondition {
+      # DNS-01 writes the challenge in one of the Cloudflare zones we manage.
+      condition     = anytrue([for zone in var.external_dns_domains : endswith(local.internal_domain, ".${zone}")])
+      error_message = "infra's internal_domain must be a subdomain of one of external_dns_domains."
+    }
+  }
+
+  depends_on = [helm_release.cluster_issuers]
+}
+
 resource "kubernetes_manifest" "internal_hosts_policy" {
   manifest = {
     apiVersion = "admissionregistration.k8s.io/v1"

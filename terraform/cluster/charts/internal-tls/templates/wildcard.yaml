@@ -1,0 +1,36 @@
+{{- /*
+One wildcard for every internal app (docs/adr/0028). DNS-01 only writes a TXT
+record, so the zone needs no public A records, and Certificate Transparency
+logs show only *.<zone>, not each app's name.
+*/}}
+{{- $domain := required "internalDomain is required" .Values.internalDomain }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: internal-wildcard
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: internal-wildcard-tls
+  dnsNames:
+    - {{ printf "*.%s" $domain | quote }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    kind: ClusterIssuer
+    name: {{ .Values.issuer }}
+---
+# Traefik's default store: routers with TLS and no secret of their own pick a
+# certificate from it by SNI. Only the store named "default" is used, and the
+# CRD provider only reads objects of its ingress class.
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  certificates:
+    - secretName: internal-wildcard-tls

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: internal-tls
+description: Let's Encrypt wildcard for the internal domain, served by Traefik to internal apps.
+type: application
+version: 0.1.0
