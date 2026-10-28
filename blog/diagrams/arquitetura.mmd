@@ -8,7 +8,8 @@ flowchart TB
     user -. "DNS" .-> cf
 
     subgraph hetzner["Hetzner Cloud · rede privada 10.0.0.0/16 (sem IP público nos nós)"]
-        gw["gateway 10.0.1.2<br/>IP público reservado<br/>NAT · VPN · HAProxy :6443/:9345"]
+        gw["gateway 10.0.1.2<br/>IP público reservado<br/>NAT · VPN · HAProxy :6443/:9345<br/>DNS da zona interna"]
+        lbi["LB interno lb11<br/>10.0.1.254, sem rede pública"]
         subgraph cp["control plane"]
             m1["master-1<br/>10.0.1.11"]
             m2["master-2<br/>10.0.1.12"]
@@ -23,6 +24,8 @@ flowchart TB
 
     gw -- "kubectl, join de nós" --> cp
     lb -- "PROXY protocol" --> wk
+    gw -- "VPN → :80/:443<br/>(*.int.devcomm.com.br)" --> lbi
+    lbi -- "entrypoints internos" --> wk
     wk -. "egress via NAT" .-> gw
     cp -. "egress via NAT" .-> gw
 

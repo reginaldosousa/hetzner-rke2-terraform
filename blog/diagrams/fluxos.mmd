@@ -1,12 +1,17 @@
 flowchart LR
     %% O Mermaid empilha os subgrafos de baixo para cima: o último declarado fica no topo.
-    subgraph egress["3 · Saída dos nós"]
+    subgraph egress["4 · Saída dos nós"]
         direction LR
         n["nó privado"] --> rt["roteador .1<br/>(rota 0.0.0.0/0)"] --> nat["gateway<br/>NAT nftables"] --> net(("internet"))
     end
-    subgraph admin["2 · Acesso do operador"]
+    subgraph admin["3 · Acesso do operador"]
         direction LR
         o["operador"] --> vpn["VPN no gateway"] --> hp["HAProxy :6443"] --> api["apiserver<br/>(3 masters)"]
+    end
+    subgraph internal["2 · Ferramentas internas"]
+        direction LR
+        oi["operador na VPN"] -- "split DNS" --> dns["dnsmasq no gateway<br/>*.int.devcomm.com.br"]
+        oi --> lbi["LB interno<br/>10.0.1.254"] --> ti["Traefik<br/>(entrypoint internal)"] --> graf["Grafana"]
     end
     subgraph ingress["1 · Entrada de usuários"]
         direction LR

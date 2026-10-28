@@ -1,8 +1,8 @@
-# Kubernetes production-ready por ~US$ 53/mês na Hetzner
+# Kubernetes production-ready por ~US$ 61/mês na Hetzner
 
 Num EKS, GKE ou AKS, o control plane gerenciado, o NAT gateway e o load balancer custam mais do que muito cluster
 inteiro antes de rodar a primeira aplicação. Neste post mostramos como montamos um cluster Kubernetes com cara de
-produção na Hetzner Cloud, todo em Terraform, com custo fixo de cerca de **US$ 53/mês**.
+produção na Hetzner Cloud, todo em Terraform, com custo fixo de cerca de **US$ 61/mês**.
 
 Por "production-ready" queremos dizer:
 
@@ -10,17 +10,18 @@ Por "production-ready" queremos dizer:
 - workers que escalam sozinhos;
 - nenhum nó exposto na internet;
 - ingress público com TLS automático;
+- ferramentas internas (Grafana) só pela VPN, com certificado válido;
 - backups, monitoramento e alertas;
 - login com identidade no `kubectl` e na VPN.
 
 ## A arquitetura
 
-![Arquitetura: gateway como único host público, masters e workers na rede privada, LB de ingress e R2](images/arquitetura.png)
+![Arquitetura: gateway como único host público, masters e workers na rede privada, LBs de ingress público e interno, e R2](images/arquitetura.png)
 
 Só um servidor, o **gateway**, tem IP público. Masters e workers vivem apenas na rede privada. O tráfego passa
-por três caminhos:
+por quatro caminhos:
 
-![Fluxos de tráfego: entrada de usuários pelo LB, acesso do operador pela VPN e saída dos nós pelo NAT do gateway](images/fluxos.png)
+![Fluxos de tráfego: entrada de usuários pelo LB, aplicações internas pela VPN, acesso do operador pela VPN e saída dos nós pelo NAT do gateway](images/fluxos.png)
 
 ## Quanto custa
 
@@ -31,9 +32,10 @@ Preços da API da Hetzner em outubro de 2026, em USD, sem IVA:
 | Gateway + 3 masters `cax11` (ARM, 2 vCPU, 4 GB) | US$ 27,96 |
 | IPv4 do gateway | US$ 0,60 |
 | Load balancer de ingress `lb11` | US$ 7,89 |
+| Load balancer interno `lb11` (só rede privada) | US$ 7,89 |
 | 2 workers mínimos `cax11` | US$ 13,98 |
 | Volumes (Prometheus, Alertmanager, Pocket ID) | US$ 3,07 |
-| **Total fixo** | **US$ 53,50** |
+| **Total fixo** | **US$ 61,39** |
 
 Workers extras custam US$ 0,0112/hora cada e somem quando a carga cai. R2, Cloudflare DNS, Let's Encrypt,
 Telegram e healthchecks.io cabem no plano gratuito.
@@ -62,7 +64,8 @@ O que mais reduziu o custo:
 | Componente | Papel |
 |---|---|
 | **Rede privada da Hetzner** | os nós só têm interface privada; uma rota `0.0.0.0/0 → gateway` leva o egress até o NAT |
-| **nftables no gateway** | NAT dos nós e firewall: entrada só pela VPN; a VPN alcança só SSH e apiserver |
+| **nftables no gateway** | NAT dos nós e firewall: entrada só pela VPN; a VPN alcança só SSH, apiserver e o LB interno |
+| **dnsmasq no gateway** | DNS da zona interna (`int.devcomm.com.br`), só para a VPN |
 | **HAProxy no gateway** | endpoint do control plane (`6443` e `9345`) com health check HTTPS dos três masters |
 | **Headscale + Tailscale** | VPN do dia a dia, com login OIDC; o gateway é o subnet router da rede privada |
 | **WireGuard** | VPN de emergência e caminho dos applies |
@@ -75,9 +78,9 @@ O que mais reduziu o custo:
 | **hcloud CCM** | inicializa os nós (`providerID hcloud://`) e cria o load balancer do ingress |
 | **hcloud CSI** | volumes persistentes (`hcloud-volumes`) |
 | **Karpenter** (provider comunitário da Hetzner) | cria workers para pods pendentes e remove os ociosos |
-| **Traefik** (o do RKE2) | ingress, atrás do LB, com PROXY protocol e redirect para HTTPS |
+| **Traefik** (o do RKE2) | ingress, atrás dos LBs público e interno, com PROXY protocol e redirect para HTTPS |
 | **external-dns** | cria os registros no Cloudflare a partir dos Ingress |
-| **cert-manager** | certificados Let's Encrypt por DNS-01 |
+| **cert-manager** | certificados Let's Encrypt por DNS-01, inclusive o wildcard da zona interna |
 | **kube-prometheus-stack** | métricas e alertas no Telegram, com dead man's switch |
 | **Velero** | backup diário de objetos e volumes no R2 |
 | **kured** | reinicia os nós, um por vez, depois de patches de kernel |
@@ -228,7 +231,29 @@ só o acesso de emergência.
 Uma pegadinha: a Hetzner recusa uma rota de rede para `100.64.0.0/10` (a faixa da tailnet), então o tráfego da
 tailnet sai com SNAT no gateway.
 
-### 13. Terraform organizado em camadas
+### 13. Ferramentas internas só pela VPN, com certificado válido
+
+O Grafana não deve ficar na internet, mas `kubectl port-forward` não escala para várias ferramentas nem para quem
+não tem kubeconfig. Queríamos `https://grafana.<algo>` que só resolve e só responde pela VPN, sem registrar
+domínio novo e sem aviso de certificado no navegador.
+
+- **Nada de domínio inventado.** Um nome não registrado num TLD público (`devcomm.services`) pode ser comprado
+  por outra pessoa, e aí bookmarks e cookies vão para o servidor dela. `.internal` é reservado e seguro, mas
+  nenhuma CA pública emite para ele: cada dispositivo teria que instalar uma CA privada. Ficamos com um
+  subdomínio da zona que já temos, **`int.devcomm.com.br`**.
+- **DNS só pela VPN.** Um dnsmasq no gateway responde qualquer nome da zona com o IP do LB interno, e o Headscale
+  entrega a zona aos clientes como split DNS. O DNS público não tem nenhum registro nela. O external-dns precisa
+  excluir a zona: todo Ingress carrega o IP do LB público no status, e ele publicaria o host interno.
+- **Um LB sem rede pública**, com IP fixo no topo da subnet (os workers pegam os IPs livres mais baixos), na
+  frente de entrypoints próprios do Traefik.
+- **Um wildcard do Let's Encrypt** por DNS-01, que só grava um TXT no Cloudflare. Os logs de Certificate
+  Transparency mostram `*.int.devcomm.com.br`, não o nome de cada ferramenta.
+- **O detalhe que mais importa:** o Traefik roteia pelo `Host`. Um Ingress interno ligado por engano aos
+  entrypoints públicos responderia a quem mandasse `Host: grafana.int.devcomm.com.br` para o IP do LB público.
+  Uma `ValidatingAdmissionPolicy` recusa qualquer Ingress ou IngressRoute da zona interna que não esteja só nos
+  entrypoints internos.
+
+### 14. Terraform organizado em camadas
 
 ![Roots do Terraform: infra, cluster e identity aplicados em ordem, com state no R2](images/terraform.png)
 
@@ -258,10 +283,10 @@ Um cluster assim não tem SLA de ninguém, e há riscos que vale aceitar de olho
 
 ## Conclusão
 
-Por cerca de US$ 53/mês temos três masters com etcd, workers elásticos, nenhum nó na internet, TLS automático,
-backups fora do provedor, alertas que funcionam mesmo com o gateway fora do ar e login por passkey no `kubectl` e na
-VPN. Nada disso exige serviços gerenciados caros. Exige conhecer as limitações do provedor e transformar cada
-contorno em código.
+Por cerca de US$ 61/mês temos três masters com etcd, workers elásticos, nenhum nó na internet, TLS automático,
+ferramentas internas só pela VPN, backups fora do provedor, alertas que funcionam mesmo com o gateway fora do ar
+e login por passkey no `kubectl` e na VPN. Nada disso exige serviços gerenciados caros. Exige conhecer as
+limitações do provedor e transformar cada contorno em código.
 
 Todas as decisões, com as alternativas descartadas, estão registradas como ADRs em [`docs/adr/`](../docs/adr/), e os
 custos detalhados em [`docs/costs.md`](../docs/costs.md).
