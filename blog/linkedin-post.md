@@ -1,8 +1,7 @@
 # Post de divulgação no LinkedIn
 
 Texto puro, para colar direto no LinkedIn (ele não renderiza Markdown; o bloco abaixo preserva as quebras de
-linha). Troque `[link PT]` e `[link EN]` pelos links dos artigos
-([PT-BR](kubernetes-production-ready-baixo-custo.md), [EN](kubernetes-production-ready-low-cost.en.md)). Cerca
+linha). Links apontam para os artigos publicados ([PT-BR](https://reginaldosousa.com/kubernetes-production-ready-por-us-61-m%C3%AAs-o-que-aprendi-montando-um-cluster-na-hetzner-cfbc99389ecc), [EN](https://reginaldosousa.com/production-ready-kubernetes-for-61-month-what-i-learned-building-a-cluster-on-hetzner-cb7deda67048)). Cerca
 de 2.300 caracteres, dentro do limite de 3.000.
 
 ```text
@@ -31,7 +30,7 @@ O mais interessante não foi o preço, foram as pegadinhas. Algumas que conto no
 
 Custo baixo e produção não são opostos, desde que cada decisão fique registrada.
 
-Artigo completo: [link PT]
+Artigo completo: https://reginaldosousa.com/kubernetes-production-ready-por-us-61-m%C3%AAs-o-que-aprendi-montando-um-cluster-na-hetzner-cfbc99389ecc
 Código: https://github.com/reginaldosousa/hetzner-rke2-terraform
 
 Já rodou Kubernetes fora das nuvens grandes? Qual pegadinha te custou mais tempo?
@@ -63,7 +62,7 @@ The price wasn't the most interesting part. The pitfalls were. A few I cover in 
 
 Low cost and production are not opposites, as long as every decision is written down.
 
-Full article: [link EN]
+Full article: https://reginaldosousa.com/production-ready-kubernetes-for-61-month-what-i-learned-building-a-cluster-on-hetzner-cb7deda67048
 Code: https://github.com/reginaldosousa/hetzner-rke2-terraform
 
 Have you run Kubernetes outside the big clouds? Which pitfall cost you the most time?

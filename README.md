@@ -18,7 +18,8 @@ $61/month fixed ([docs/costs.md](docs/costs.md)):
 - Login with passkeys (Pocket ID) for both `kubectl` and the VPN
 
 The write-up of how it is built and what went wrong along the way:
-[PT-BR](blog/kubernetes-production-ready-baixo-custo.md) · [English](blog/kubernetes-production-ready-low-cost.en.md).
+[English](https://reginaldosousa.com/production-ready-kubernetes-for-61-month-what-i-learned-building-a-cluster-on-hetzner-cb7deda67048) · [PT-BR](https://reginaldosousa.com/kubernetes-production-ready-por-us-61-m%C3%AAs-o-que-aprendi-montando-um-cluster-na-hetzner-cfbc99389ecc)
+(sources in [`blog/`](blog/)).
 
 The git history builds the project one piece at a time — `git log --reverse -p` reads like a walkthrough.
 

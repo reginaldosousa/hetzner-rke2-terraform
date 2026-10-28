@@ -227,6 +227,7 @@ written down**. Every choice in this project, along with the alternatives I rule
 What about you: have you run Kubernetes outside the big clouds? Which pitfall cost you the most time?
 
 <!--
+Published at: https://reginaldosousa.com/production-ready-kubernetes-for-61-month-what-i-learned-building-a-cluster-on-hetzner-cb7deda67048
 English version of kubernetes-production-ready-baixo-custo.md; keep both in step.
 Format: written for Medium and LinkedIn, which don't render Markdown tables, so lists only.
 Diagrams: Mermaid sources in blog/diagrams/en/. To re-render:
