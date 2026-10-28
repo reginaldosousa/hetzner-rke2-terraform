@@ -1,0 +1,46 @@
+{{- /*
+Private CA for the internal domain (docs/adr/0027). No public CA issues
+certificates for .internal. The root is name-constrained to the internal
+domain, so even a leaked key can't sign for any other name, and trusting it
+on a laptop is limited to that zone.
+*/}}
+{{- $domain := required "internalDomain is required" .Values.internalDomain }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: internal-ca-bootstrap
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: internal-ca
+  namespace: {{ .Release.Namespace }}
+spec:
+  isCA: true
+  commonName: {{ $domain }} internal CA
+  secretName: internal-ca
+  duration: 87600h # 10 years; a new root has to be re-imported on every device
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    # Renewal re-signs the same key, so devices keep trusting the root.
+    rotationPolicy: Never
+  nameConstraints:
+    critical: true
+    permitted:
+      dnsDomains:
+        - {{ $domain }}
+  issuerRef:
+    kind: ClusterIssuer
+    name: internal-ca-bootstrap
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: internal-ca
+spec:
+  ca:
+    secretName: internal-ca
