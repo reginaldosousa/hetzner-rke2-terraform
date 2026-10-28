@@ -1,6 +1,7 @@
-# hetzner-cloud
+# hetzner-rke2-terraform
 
-RKE2 Kubernetes cluster on Hetzner Cloud:
+Production-ready, low-cost RKE2 Kubernetes on Hetzner Cloud, all in Terraform, for about
+$61/month fixed ([docs/costs.md](docs/costs.md)):
 
 - 3 RKE2 server (control-plane + etcd) nodes managed by Terraform
 - Worker nodes provisioned on demand by [Karpenter](https://karpenter.sh) using the
@@ -12,6 +13,12 @@ RKE2 Kubernetes cluster on Hetzner Cloud:
   etcd snapshots and Velero backups to Cloudflare R2, Prometheus with Telegram
   alerts and a dead man's switch, a two-worker floor across locations, and kured
   for patch reboots
+- Internal tools (Grafana) reachable only over the VPN, under `int.devcomm.com.br`, with a
+  Let's Encrypt wildcard and no public DNS records
+- Login with passkeys (Pocket ID) for both `kubectl` and the VPN
+
+The write-up of how it is built and what went wrong along the way:
+[PT-BR](blog/kubernetes-production-ready-baixo-custo.md) · [English](blog/kubernetes-production-ready-low-cost.en.md).
 
 The git history builds the project one piece at a time — `git log --reverse -p` reads like a walkthrough.
 
@@ -269,6 +276,9 @@ infrastructure: applies run locally over the VPN from a reviewed plan.
 
 ## Security notes
 
+- This repository is public. No state, `*.tfvars`, kubeconfig or key has ever been committed
+  (the full history was scanned before it went public), and GitHub secret scanning with push
+  protection blocks a push that contains a known token. Keep secrets in the git-ignored files.
 - Terraform state contains the RKE2 tokens, WireGuard and SSH host private keys,
   the Hetzner token, Pocket ID's encryption key and Headscale's OIDC client secret. It lives in R2 (encrypted at rest by Cloudflare, but not
   client-side encrypted), so **anyone with the R2 token can read every secret**:

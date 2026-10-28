@@ -53,7 +53,7 @@ enquanto não há carga.
 | healthchecks.io | dead man's switch do Watchdog | US$ 0 no plano Hobbyist |
 | Cloudflare DNS | zonas gerenciadas pelo external-dns | US$ 0 no plano Free |
 | Let's Encrypt | certificados via cert-manager | gratuito |
-| GitHub Actions | CI estático em repo privado | dentro dos minutos inclusos do plano (o job leva poucos minutos) |
+| GitHub Actions | CI estático, repositório público | gratuito |
 
 ## Decisões que reduziram custo
 

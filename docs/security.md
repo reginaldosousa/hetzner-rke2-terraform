@@ -87,6 +87,8 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
 - **Proteção contra deleção** em etcd, IP da VPN e rede ([ADR 0013](adr/0013-delete-protection.md)).
 - **CI sem credenciais** ([ADR 0015](adr/0015-static-only-ci.md)), com trivy procurando misconfigurações
   HIGH/CRITICAL.
+- **Repositório público com secret scanning e push protection** ([ADR 0015](adr/0015-static-only-ci.md)): o
+  GitHub bloqueia um push que contenha um token conhecido e alerta sobre o que já estiver no histórico.
 
 ## Riscos conhecidos
 
@@ -103,6 +105,10 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   `hostNetwork`. Quem pode criar pods neles tem root nos nós. Os dois são gerenciados só pelo Terraform.
 - **Wildcard interno**: quem lê o Secret `kube-system/internal-wildcard-tls` pode se passar por qualquer
   aplicação interna para quem resolver o nome até ele, o que só acontece pela VPN ou com DNS sequestrado.
+- **O código é público.** Qualquer um vê a arquitetura, os domínios, os IPs privados e o ID da conta
+  Cloudflare. Nada disso dá acesso: segredos só existem no state, nos `tfvars` e no cluster, todos fora do git.
+  Um `tfvars` ou `kubeconfig` commitado por engano seria público na hora, por isso o `.gitignore` e a push
+  protection importam.
 - **Snapshots e backups têm todo o conteúdo do cluster**: os buckets `rke2-etcd-snapshots` e `rke2-velero` devem
   ser tratados como sensíveis. Os Secrets estão cifrados no etcd (`secrets-encryption` do RKE2), mas o resto não.
 - **Masters `cax11` (4 GB)**: usavam de 37% a 49% da memória sem carga, antes do node-exporter e dos agentes. O
