@@ -57,10 +57,17 @@ alternativas descartadas.
 
 ### nftables
 - **Papel:** NAT (masquerade) do egress dos nós e firewall do gateway: a chain `input` só aceita WireGuard, SSH
-  pelo túnel e HAProxy, e a `forward` limita a VPN a SSH e apiserver e impede a rede de abrir conexões para os
-  clientes VPN.
+  e DNS interno pelo túnel e HAProxy, e a `forward` limita a VPN a SSH, apiserver e HTTP(S) do LB interno e
+  impede a rede de abrir conexões para os clientes VPN.
 - **Por quê:** substituto padrão do iptables no Ubuntu 24.04, com troca atômica de ruleset (`nft -f`) e
   validação prévia (`nft -c`), o que permite atualizar o gateway em produção com segurança.
+
+### dnsmasq (DNS das aplicações internas)
+- **Papel:** responde qualquer nome de `internal_domain` (`int.devcomm.com.br`) com o IP do LB interno, só em
+  `10.0.1.2:53` e só para a VPN. O Headscale entrega a zona aos clientes como split DNS.
+- **Por quê:** os nomes internos não existem no DNS público. Só o binário (`dnsmasq-base`) com uma unit própria,
+  sem upstream: não resolve nenhum outro nome e não mexe no resolver do próprio gateway.
+- **ADR:** [0027](adr/0027-internal-apps-dns.md), [0028](adr/0028-internal-apps-public-subdomain.md)
 
 ### HAProxy
 - **Papel:** endpoint do control plane (`10.0.1.2:6443` e `:9345`) com health check HTTPS dos três masters
@@ -140,13 +147,16 @@ alternativas descartadas.
 - **ADR:** [0020](adr/0020-worker-floor-and-node-reboots.md)
 
 ### Traefik (embutido no RKE2)
-- **Papel:** ingress controller, terminação TLS e redirect HTTP→HTTPS.
+- **Papel:** ingress controller, terminação TLS e redirect HTTP→HTTPS. Tem entrypoints públicos (`web`,
+  `websecure`) e internos (`internal`, `internal-web`), cada par atrás do seu LB.
 - **Por quê:** já vem no RKE2 e é configurado via `HelmChartConfig`, sem outro chart para manter. Aceita PROXY
-  protocol restrito à rede privada, o que preserva o IP real do cliente.
-- **ADR:** [0011](adr/0011-ingress-traefik-hetzner-lb.md)
+  protocol restrito à rede privada, o que preserva o IP real do cliente. Uma `ValidatingAdmissionPolicy` impede
+  que um host interno seja servido pelos entrypoints públicos.
+- **ADR:** [0011](adr/0011-ingress-traefik-hetzner-lb.md), [0027](adr/0027-internal-apps-dns.md)
 
 ### Hetzner Load Balancer (`lb11`, via CCM)
-- **Papel:** IP público de entrada para 80/443.
+- **Papel:** IP público de entrada para 80/443. Um segundo `lb11`, sem rede pública e com IP fixo
+  `10.0.1.254`, recebe as aplicações internas pela VPN ([ADR 0027](adr/0027-internal-apps-dns.md)).
 - **Por quê:** é a única forma de expor serviços com nós sem IP público, custa pouco e fala com os workers pela
   rede privada. É criado pelo CCM, não pelo Terraform, e por isso precisa ser removido antes de destruir o
   cluster.
@@ -155,21 +165,24 @@ alternativas descartadas.
 ### external-dns
 - **Papel:** cria e remove registros A/AAAA no Cloudflare para os hosts dos Ingress.
 - **Por quê:** DNS passa a seguir o cluster de forma declarativa. Com `policy: sync` e registro TXT de dono,
-  ele apaga apenas o que criou, e o `domainFilters` obrigatório limita as zonas que pode tocar.
+  ele apaga apenas o que criou, e o `domainFilters` obrigatório limita as zonas que pode tocar. A zona interna
+  fica em `excludeDomains`, para nunca ir ao DNS público.
 - **ADR:** [0012](adr/0012-dns-tls-cloudflare.md)
 
 ### cert-manager + Let's Encrypt (DNS-01 no Cloudflare)
 - **Papel:** emite e renova certificados TLS a partir de anotações no Ingress.
 - **Por quê:** DNS-01 não depende de HTTP aberto (o redirect 308 não interfere), funciona antes de o DNS
-  propagar e permitiria wildcard. Reaproveita o mesmo token Cloudflare do external-dns. O issuer de staging
-  existe para testar sem esbarrar nos rate limits.
+  propagar e emite wildcard: o `*.int.devcomm.com.br` das aplicações internas, servido pelo TLSStore do
+  Traefik ([ADR 0028](adr/0028-internal-apps-public-subdomain.md)). Reaproveita o mesmo token Cloudflare do
+  external-dns. O issuer de staging existe para testar sem esbarrar nos rate limits.
 - **ADR:** [0012](adr/0012-dns-tls-cloudflare.md)
 
 ## Observabilidade e backup
 
 ### kube-prometheus-stack + Telegram
 - **Papel:** Prometheus, Alertmanager, Grafana, kube-state-metrics e node-exporter. Coleta inclusive etcd,
-  controller-manager e scheduler, e envia alertas para o Telegram.
+  controller-manager e scheduler, e envia alertas para o Telegram. O Grafana fica em
+  `https://grafana.int.devcomm.com.br`, só pela VPN.
 - **Por quê:** as regras padrão do chart cobrem nós, etcd, apiserver, volumes e workloads. O Telegram só precisa
   de um bot. O Watchdog vai para um dead man's switch externo, porque um gateway fora do ar silencia os alertas.
 - **ADR:** [0021](adr/0021-monitoring-telegram.md)
