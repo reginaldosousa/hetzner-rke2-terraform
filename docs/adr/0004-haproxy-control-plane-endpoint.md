@@ -39,3 +39,8 @@ gateway, que também entra no `tls-san` dos masters. Timeouts de 1h mantêm `kub
 - **2026-10-27:** O health check deixou de ser só TCP: `option httpchk` com TLS, esperando 200/401 de `/readyz` na
   6443 (o anonymous auth está desligado) e 200 de `/ping` na 9345. Um master com a porta aberta mas o servidor
   travado sai da rotação.
+- **2026-10-28:** O LB interno do [0027](0027-internal-apps-dns.md) não substitui o HAProxy. Ele é criado pelo
+  CCM, que só existe depois do cluster, e o endpoint precisa existir antes, para os masters entrarem. Ele também
+  chega aos nós por NodePort e kube-proxy, então um cluster quebrado levaria o `kubectl` junto. E o CCM
+  reconcilia o LB a partir do Service, apagando uma porta `6443` acrescentada à mão. O gateway continua no
+  caminho do `kubectl` (VPN) e do join (NAT), então a decisão original vale.

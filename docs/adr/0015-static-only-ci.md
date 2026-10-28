@@ -33,3 +33,10 @@ localmente, pela VPN, a partir de um plan revisado.
 - O CI não guarda segredos e não pode alterar a infraestrutura.
 - Não existe plan automático no PR: quem aplica precisa rodar e revisar o plan localmente.
 - Lock file incompleto ou versão de ferramenta divergente quebram o CI de forma explícita.
+
+## Atualizações
+- **2026-10-28:** O repositório ficou público (`reginaldosousa/hetzner-rke2-terraform`). Antes, o histórico
+  inteiro foi varrido: nenhum state, tfvars, kubeconfig, chave ou valor de segredo entrou em commit. O GitHub
+  passou a rodar secret scanning com push protection, que bloqueia um push contendo um token conhecido. Num
+  repositório público, o Actions não tem custo, e PRs de forks continuam sem acesso a nada, porque o CI não
+  guarda segredos.
