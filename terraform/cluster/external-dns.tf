@@ -33,6 +33,9 @@ resource "helm_release" "external_dns" {
     }]
     sources       = ["ingress", "service"]
     domainFilters = var.external_dns_domains
+    # Internal hosts (docs/adr/0027) carry the public LB's IP in their Ingress
+    # status, like every Ingress. They must stay out of public DNS.
+    excludeDomains = [local.internal_domain]
     # sync also deletes records, but the TXT registry limits that to records
     # this cluster created; anything else in the zone is left alone.
     policy     = "sync"
