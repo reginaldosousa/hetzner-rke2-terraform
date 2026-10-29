@@ -41,6 +41,9 @@ resource "helm_release" "loki" {
       limits_config = {
         retention_period = var.loki_retention
       }
+      # Grafana's Logs Drilldown reads /loki/api/v1/patterns, which only the
+      # pattern ingester serves.
+      pattern_ingester = { enabled = true }
     }
 
     singleBinary = {
