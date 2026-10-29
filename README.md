@@ -15,7 +15,7 @@ $61/month fixed ([docs/costs.md](docs/costs.md)):
   for patch reboots
 - Internal tools (Grafana) reachable only over the VPN, under `int.devcomm.com.br`, with a
   Let's Encrypt wildcard and no public DNS records
-- Login with passkeys (Pocket ID) for both `kubectl` and the VPN
+- Login with passkeys (Pocket ID) for `kubectl`, the VPN and Grafana
 
 The write-up of how it is built and what went wrong along the way:
 [English](https://reginaldosousa.com/production-ready-kubernetes-for-61-month-what-i-learned-building-a-cluster-on-hetzner-cb7deda67048) · [PT-BR](https://reginaldosousa.com/kubernetes-production-ready-por-us-61-m%C3%AAs-o-que-aprendi-montando-um-cluster-na-hetzner-cfbc99389ecc).
@@ -125,13 +125,16 @@ ADRs 0023–0026):
 # 5. Pocket ID: keep pocket_id_allowed_cidrs = ["<your IP>/32"] until you create the
 #    admin at https://<oidc_issuer_url>/setup, then set it to [] and apply cluster again.
 # 6. terraform/identity: Pocket ID API key + users in its tfvars, then apply.
-#    It creates the k8s-admins/vpn groups and the kubectl and headscale OIDC clients.
+#    It creates the k8s-admins/vpn groups and the kubectl, headscale and grafana OIDC clients.
 # 7. terraform/infra: set oidc_client_id and headscale_* from
 #    `terraform -chdir=terraform/identity output`, apply, then scripts/sync-masters.sh.
 #    (headscale_hostname first needs one infra + cluster apply for its DNS record.)
 # 8. Headscale's database backup to R2 (survives a gateway rebuild, ADR 0026):
 #    import its live keys, then headscale_backup from `terraform -chdir=terraform/cluster
 #    output -json headscale_backup` (docs/operations.md, "Backup do banco").
+# 9. Grafana login through Pocket ID: grafana_oidc from identity, then apply cluster:
+#    terraform -chdir=terraform/identity output -json grafana_oidc \
+#      | jq '{grafana_oidc: .}' > terraform/cluster/grafana-oidc.auto.tfvars.json
 ```
 
 ## Verify
@@ -252,7 +255,9 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
 - **Internal apps** (ADR 0027, 0028): names under `internal_domain` (`int.devcomm.com.br`)
   resolve only over the VPN, through dnsmasq on the gateway, to a private-only LB,
   with a Let's Encrypt wildcard. Grafana is at `https://grafana.int.devcomm.com.br`
-  (docs/operations.md, "Aplicações internas"). Prometheus and Alertmanager
+  (docs/operations.md, "Aplicações internas"), with login through Pocket ID:
+  `k8s-admins` are Admins, `vpn` members Viewers, and the `admin` password is only
+  break-glass (`/login?disableAutoLogin=true`). Prometheus and Alertmanager
   are still reached with `kubectl -n monitoring port-forward`.
 - **Backups**: etcd snapshots every 6 h and Velero daily, 7 days each, in R2, plus
   Headscale's database streamed there by Litestream (ADR 0026).

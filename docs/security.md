@@ -22,7 +22,8 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | RKE2 `agent-token` | user_data dos workers (Secret `karpenter-worker-bootstrap`) | workers. Só permite entrar como agent |
 | Chaves WireGuard | state do `infra`, `/etc/wireguard/wg0.conf`, `wg/` local | gateway e clientes |
 | Host key SSH do gateway | state do `infra` (`tls_private_key.gateway_host`) | gateway; output `gateway_known_hosts` para fixar |
-| Senha admin do Grafana | state do `cluster` (`random_password`) → Secret `monitoring/grafana-admin` | Grafana, acessado pela VPN (`grafana.int.devcomm.com.br`) |
+| Senha admin do Grafana | state do `cluster` (`random_password`) → Secret `monitoring/grafana-admin` | break-glass do Grafana (`/login?disableAutoLogin=true`); o login normal é pelo Pocket ID |
+| Secret do client OIDC do Grafana | state do `identity` → `grafana-oidc.auto.tfvars.json` do `cluster` → Secret `monitoring/grafana-oidc` | Grafana, por variável de ambiente; nunca nos values do Helm nem no ConfigMap |
 | Chave do wildcard interno | Secret `kube-system/internal-wildcard-tls` (gerada pelo cert-manager, nunca no state) | Traefik, para `*.int.devcomm.com.br` ([ADR 0028](adr/0028-internal-apps-public-subdomain.md)) |
 | Token Cloudflare (DNS) | token criado pelo `cluster` (`dns-token.tf`) → Secrets do external-dns e do cert-manager | escopo Zone Read + DNS Write só nas zonas de `external_dns_domains` |
 | Credenciais R2 (state) | perfil AWS `r2` local | operador; **fora do CI** |

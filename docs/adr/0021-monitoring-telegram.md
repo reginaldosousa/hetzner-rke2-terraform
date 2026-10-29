@@ -44,3 +44,5 @@ membro ou enchesse, se um volume lotasse ou se um workload ficasse reiniciando.
   ([0027](0027-internal-apps-dns.md)). O port-forward continua funcionando.
 - **2026-10-28:** O endereço passou a ser `https://grafana.int.devcomm.com.br`, com certificado do Let's Encrypt
   ([0028](0028-internal-apps-public-subdomain.md)).
+- **2026-10-29:** O login do Grafana é pelo Pocket ID: `k8s-admins` entram como Admin e `vpn` como Viewer
+  ([0023](0023-oidc-pocket-id.md)). A senha do `admin` fica só como break-glass.

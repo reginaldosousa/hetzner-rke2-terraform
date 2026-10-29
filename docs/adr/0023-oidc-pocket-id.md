@@ -46,3 +46,10 @@ curta e sem revogação individual. Quem tem o arquivo e a VPN tem tudo. O plano
   `sync-masters.sh` e kubeconfigs novos.
 - Perder a chave de criptografia (state) deixa o banco ilegível.
 - RBAC por usuário não funciona por nome; tudo passa por grupos no Pocket ID.
+
+## Atualizações
+- **2026-10-29:** O Grafana é o terceiro client OIDC (`pocketid_client.grafana`, confidencial com PKCE), depois
+  do `kubectl` e do Headscale. Entram `k8s-admins` (papel Admin) e `vpn` (Viewer); qualquer outro é recusado, e o
+  papel é sincronizado a cada login. O ID e o secret vão do `identity` para a variável `grafana_oidc` do
+  `cluster` por um `grafana-oidc.auto.tfvars.json` ignorado pelo git, e o secret chega ao Grafana por um Secret.
+  O usuário `admin` continua como break-glass em `/login?disableAutoLogin=true`.

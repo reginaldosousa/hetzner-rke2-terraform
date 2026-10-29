@@ -118,6 +118,18 @@ kubectl config set-credentials oidc \
 kubectl --user=oidc auth whoami   # oidc:<sub>, grupos oidc:k8s-admins
 ```
 
+6. Grafana: o `apply` do `identity` cria também o client `grafana`. Passe ID e secret para o `cluster` (arquivo
+   ignorado pelo git) e rode `apply` do `cluster`:
+
+```bash
+terraform -chdir=terraform/identity output -json grafana_oidc \
+  | jq '{grafana_oidc: .}' > terraform/cluster/grafana-oidc.auto.tfvars.json
+terraform -chdir=terraform/cluster apply
+```
+
+   O Pocket ID só devolve o secret quando cria o client. Se ele for recriado, repita os dois comandos, ou o login
+   no Grafana falha.
+
 Acesso novo = usuário em `users` com o grupo, `apply` do `identity` e um link de acesso único (UI) para ele
 cadastrar a passkey. Para revogar, tire o grupo ou ponha `disabled = true` no `users` e rode o `apply` (desativar
 só pela UI é desfeito no próximo `apply`); tokens já emitidos valem
@@ -257,8 +269,10 @@ Alertas vão para o Telegram (`telegram_chat_id`), e o `Watchdog` para o dead ma
 ([ADR 0021](adr/0021-monitoring-telegram.md)).
 
 ```bash
+# Grafana: https://grafana.int.devcomm.com.br (só pela VPN), login pelo Pocket ID:
+#   k8s-admins = Admin, vpn = Viewer, outros grupos são recusados.
+# Break-glass (Pocket ID fora do ar): https://grafana.int.devcomm.com.br/login?disableAutoLogin=true
 kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d; echo
-# Grafana: https://grafana.int.devcomm.com.br (só pela VPN, ver "Aplicações internas")
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093      # silenciar alertas
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090        # Status > Targets
 ```
