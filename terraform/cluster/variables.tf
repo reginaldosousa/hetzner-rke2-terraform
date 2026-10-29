@@ -174,6 +174,13 @@ variable "oidc_admin_group" {
   default     = "k8s-admins"
 }
 
+variable "loki_chart_version" {
+  description = "grafana-community loki chart version (the OSS chart moved there from grafana/ in March 2026)."
+  type        = string
+  default     = "20.0.3"
+}
+
+
 variable "loki_bucket" {
   description = "R2 bucket for Loki's chunks and index."
   type        = string
@@ -185,5 +192,12 @@ variable "tempo_bucket" {
   description = "R2 bucket for Tempo's trace blocks."
   type        = string
   default     = "rke2-tempo"
+}
+
+
+variable "loki_retention" {
+  description = "How long Loki keeps logs (a duration, e.g. 720h)."
+  type        = string
+  default     = "720h"
 }
 
