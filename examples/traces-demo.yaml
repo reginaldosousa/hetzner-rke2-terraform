@@ -1,0 +1,198 @@
+# Distributed-tracing demo (ADR 0029): kubectl apply -f examples/traces-demo.yaml
+# frontend calls backend /fast and /slow in parallel; backend sleeps a random
+# time and fails ~10% of requests. Neither has tracing code: the OpenTelemetry
+# operator injects the Node.js SDK through the inject-nodejs annotation.
+# loadgen sends a request every 2s. Over the VPN:
+#   https://traces-demo.int.devcomm.com.br/
+# In Grafana: Explore > Tempo > { resource.service.name = "frontend" }, the
+# service graph (Tempo > Service Graph), and logs with {k8s_namespace_name="traces-demo"}.
+# Remove with: kubectl delete namespace traces-demo
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traces-demo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app
+  namespace: traces-demo
+data:
+  app.js: |
+    const http = require('http');
+
+    // The injected SDK ships @opentelemetry/api; used only to put the trace
+    // ID in each log line, so Grafana can go from a span to its logs.
+    let api;
+    try { api = require('/otel-auto-instrumentation-nodejs/node_modules/@opentelemetry/api'); } catch (e) {}
+    function log(msg, fields = {}) {
+      const ctx = api && api.trace.getActiveSpan() && api.trace.getActiveSpan().spanContext();
+      console.log(JSON.stringify({ level: 'info', msg, trace_id: ctx && ctx.traceId, span_id: ctx && ctx.spanId, ...fields }));
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const get = (url) => new Promise((resolve, reject) => {
+      http.get(url, (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => resolve({ status: res.statusCode, body }));
+      }).on('error', reject);
+    });
+
+    const backend = async (req, res) => {
+      const path = new URL(req.url, 'http://x').pathname;
+      const ms = Math.round(20 + Math.random() * (path === '/slow' ? 800 : 80));
+      await sleep(ms);
+      if (Math.random() < 0.1) {
+        log('backend failed', { level: 'error', path, ms });
+        res.statusCode = 500;
+        return res.end('boom');
+      }
+      log('backend done', { path, ms });
+      res.end(JSON.stringify({ path, ms }));
+    };
+
+    const frontend = async (req, res) => {
+      try {
+        const [fast, slow] = await Promise.all([
+          get(`${process.env.BACKEND_URL}/fast`),
+          get(`${process.env.BACKEND_URL}/slow`),
+        ]);
+        const ok = fast.status === 200 && slow.status === 200;
+        log('frontend handled request', { level: ok ? 'info' : 'warn', fast: fast.status, slow: slow.status });
+        res.statusCode = ok ? 200 : 502;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ fast, slow }));
+      } catch (e) {
+        log('frontend error', { level: 'error', error: e.message });
+        res.statusCode = 500;
+        res.end();
+      }
+    };
+
+    http.createServer(process.env.ROLE === 'backend' ? backend : frontend).listen(8080);
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: traces-demo
+spec:
+  selector:
+    matchLabels: {app: backend}
+  template:
+    metadata:
+      labels: {app: backend}
+      annotations:
+        instrumentation.opentelemetry.io/inject-nodejs: "monitoring/default"
+    spec:
+      containers:
+        - name: app
+          image: node:22.22.0-alpine   # multi-arch (arm64 + amd64)
+          command: ["node", "/app/app.js"]
+          env:
+            - {name: ROLE, value: backend}
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - {name: app, mountPath: /app}
+          resources:
+            requests: {cpu: 10m, memory: 96Mi}
+            limits: {memory: 256Mi}
+      volumes:
+        - name: app
+          configMap: {name: app}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: traces-demo
+spec:
+  selector: {app: backend}
+  ports:
+    - {port: 80, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: traces-demo
+spec:
+  selector:
+    matchLabels: {app: frontend}
+  template:
+    metadata:
+      labels: {app: frontend}
+      annotations:
+        instrumentation.opentelemetry.io/inject-nodejs: "monitoring/default"
+    spec:
+      containers:
+        - name: app
+          image: node:22.22.0-alpine
+          command: ["node", "/app/app.js"]
+          env:
+            - {name: ROLE, value: frontend}
+            - {name: BACKEND_URL, value: "http://backend"}
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - {name: app, mountPath: /app}
+          resources:
+            requests: {cpu: 10m, memory: 96Mi}
+            limits: {memory: 256Mi}
+      volumes:
+        - name: app
+          configMap: {name: app}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: traces-demo
+spec:
+  selector: {app: frontend}
+  ports:
+    - {port: 80, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: traces-demo
+spec:
+  selector:
+    matchLabels: {app: loadgen}
+  template:
+    metadata:
+      labels: {app: loadgen}
+    spec:
+      containers:
+        - name: curl
+          image: curlimages/curl:8.17.0   # multi-arch
+          command: ["sh", "-c", "while true; do curl -s -o /dev/null http://frontend/; sleep 2; done"]
+          resources:
+            requests: {cpu: 5m, memory: 8Mi}
+            limits: {memory: 32Mi}
+---
+# Internal app (ADR 0027/0028): only over the VPN, TLS from the zone wildcard.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: traces-demo
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: internal
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: traces-demo.int.devcomm.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port: {number: 80}
