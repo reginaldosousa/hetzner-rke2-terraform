@@ -109,9 +109,14 @@ resource "helm_release" "otel_cluster" {
     config = {
       receivers = merge(local.otel_disabled_receivers, { otlp = null })
       exporters = local.otel_exporters
+      # Events carry no pod attributes; a fixed service name makes them
+      # {service_name="k8s-events"} in Loki.
+      processors = {
+        "resource/events" = { attributes = [{ key = "service.name", value = "k8s-events", action = "upsert" }] }
+      }
       service = {
         pipelines = {
-          logs    = { receivers = [], processors = ["memory_limiter", "batch"], exporters = ["otlphttp/loki"] }
+          logs    = { receivers = [], processors = ["memory_limiter", "resource/events", "batch"], exporters = ["otlphttp/loki"] }
           traces  = null
           metrics = null
         }
