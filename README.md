@@ -264,7 +264,8 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
   and Kubernetes Events to Loki and apps' traces to Tempo, both stored in R2 and linked
   in Grafana. Annotate a pod with
   `instrumentation.opentelemetry.io/inject-<java|nodejs|python|dotnet>: "monitoring/default"`
-  for traces without code changes (docs/operations.md, "Logs e traces").
+  for traces without code changes (docs/operations.md, "Logs e traces");
+  `examples/traces-demo.yaml` is a two-service demo that shows it.
 - **Backups**: etcd snapshots every 6 h and Velero daily, 7 days each, in R2, plus
   Headscale's database streamed there by Litestream (ADR 0026).
   Restore runbooks are in docs/operations.md.

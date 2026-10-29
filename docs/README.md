@@ -31,5 +31,6 @@ terraform/cluster/    root 2: só fala com o Kubernetes, via VPN
 terraform/identity/   root 3: API do Pocket ID (grupos, clients OIDC, usuários)
 scripts/              get-kubeconfig, pin-master-host-keys, sync-gateway, sync-masters, backup-state
 examples/whoami.yaml  smoke test de ingress + DNS + TLS
+examples/traces-demo.yaml  demo de traces: frontend → backend em Node, auto-instrumentados
 .github/workflows/    CI estático (fmt, validate, tflint, trivy, helm lint, shellcheck)
 ```

@@ -310,6 +310,13 @@ kubectl -n <ns> patch deployment <app> --type merge -p \
 kubectl -n <ns> get pod -l app=<app> -o jsonpath='{.items[0].spec.initContainers[*].name}'   # opentelemetry-auto-instrumentation-java
 ```
 
+**Demo:** `kubectl apply -f examples/traces-demo.yaml` sobe um `frontend` que chama um `backend` (latência
+aleatória e ~10% de erros), os dois em Node e sem código de tracing, e um `loadgen` com uma requisição a cada 2 s.
+Os logs saem em JSON com `trace_id`, então "Logs for this span" no Tempo abre as linhas daquele trace. A página
+fica em `https://traces-demo.int.devcomm.com.br` (só pela VPN). No Tempo, procure
+`{ resource.service.name = "frontend" }` e veja o service graph `frontend → backend`. Para remover:
+`kubectl delete namespace traces-demo`.
+
 Apps com o SDK próprio (ou em Go) mandam OTLP para `http://otel-agent.monitoring:4318` (HTTP) ou `:4317`
 (gRPC). A amostragem é `otel_trace_sample_ratio` (padrão 1, todos os traces novos).
 
