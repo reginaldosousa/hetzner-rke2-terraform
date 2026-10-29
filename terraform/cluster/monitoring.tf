@@ -163,6 +163,27 @@ resource "helm_release" "kube_prometheus_stack" {
         serviceMonitorSelectorNilUsesHelmValues = false
         podMonitorSelectorNilUsesHelmValues     = false
         ruleSelectorNilUsesHelmValues           = false
+
+        # Pushed metrics (ADR 0029): apps' OTLP metrics through the
+        # collectors, and Tempo's span metrics and service graph by
+        # remote-write. Both arrive late or out of order, hence the window.
+        enableOTLPReceiver        = true
+        enableRemoteWriteReceiver = true
+        enableFeatures            = ["exemplar-storage"]
+        tsdb                      = { outOfOrderTimeWindow = "30m" }
+        otlp = {
+          # service.name and service.instance.id already become job and
+          # instance; these make the rest queryable as labels.
+          promoteResourceAttributes = [
+            "k8s.namespace.name",
+            "k8s.pod.name",
+            "k8s.container.name",
+            "k8s.node.name",
+            "k8s.deployment.name",
+            "k8s.statefulset.name",
+            "k8s.daemonset.name",
+          ]
+        }
       }
     }
 
@@ -188,6 +209,54 @@ resource "helm_release" "kube_prometheus_stack" {
         }
         hosts = ["grafana.${local.internal_domain}"]
       }
+
+      # Logs and traces (loki.tf, tempo.tf), linked both ways: a log line's
+      # trace_id opens the trace, a span opens its logs, an exemplar on a
+      # Prometheus graph opens the trace behind it.
+      sidecar = {
+        datasources = {
+          exemplarTraceIdDestinations = { datasourceUid = "tempo", traceIdLabelName = "trace_id" }
+        }
+      }
+      additionalDataSources = [
+        {
+          name   = "Loki"
+          uid    = "loki"
+          type   = "loki"
+          access = "proxy"
+          url    = "http://loki.${kubernetes_namespace_v1.monitoring.metadata[0].name}:3100"
+          jsonData = {
+            derivedFields = [{
+              name            = "TraceID"
+              matcherType     = "label"
+              matcherRegex    = "trace_id"
+              datasourceUid   = "tempo"
+              url             = "$${__value.raw}"
+              urlDisplayLabel = "View trace"
+            }]
+          }
+        },
+        {
+          name   = "Tempo"
+          uid    = "tempo"
+          type   = "tempo"
+          access = "proxy"
+          url    = "http://tempo.${kubernetes_namespace_v1.monitoring.metadata[0].name}:3200"
+          jsonData = {
+            tracesToLogsV2 = {
+              datasourceUid      = "loki"
+              spanStartTimeShift = "-5m"
+              spanEndTimeShift   = "5m"
+              filterByTraceID    = true
+              tags               = [{ key = "service.name", value = "service_name" }]
+            }
+            tracesToMetrics = { datasourceUid = "prometheus" }
+            serviceMap      = { datasourceUid = "prometheus" }
+            nodeGraph       = { enabled = true }
+            lokiSearch      = { datasourceUid = "loki" }
+          }
+        },
+      ]
     }
   })], local.grafana_oidc_values)
 }
