@@ -198,7 +198,7 @@ alternativas descartadas.
 ### Loki e Tempo
 - **Papel:** Loki guarda os logs (30 dias) e Tempo os traces (7 dias), os dois em modo single binary com os
   dados no R2 (`rke2-loki`, `rke2-tempo`). O Tempo gera métricas de span e o service graph no Prometheus. No
-  Grafana, um log abre o trace dele e vice-versa.
+  Grafana, um log abre o trace dele e vice-versa. O pattern ingester do Loki alimenta o Logs Drilldown.
 - **Por quê:** encaixam no Grafana e no Prometheus que já existem, e cabem nos nós de 4 GB. O R2 não cobra
   egress e sobrevive à perda do cluster.
 - **ADR:** [0029](adr/0029-observability-opentelemetry.md)

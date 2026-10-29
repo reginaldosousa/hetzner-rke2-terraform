@@ -291,6 +291,16 @@ dois com os dados no R2 ([ADR 0029](adr/0029-observability-opentelemetry.md)). C
 { resource.service.name = "minha-app" && duration > 500ms }
 ```
 
+**Logs Drilldown** (Grafana → Drilldown → Logs) navega pelos logs sem escrever LogQL, com as abas Patterns,
+Labels e Fields. Selecione o datasource **Loki** no topo da página. Com o Prometheus (o padrão do Grafana), a
+página carrega mas mostra "404 page not found", porque as chamadas a `index/volume` vão para o datasource errado.
+A aba Patterns depende do pattern ingester do Loki e se preenche alguns minutos depois de os logs chegarem.
+
+```bash
+S=$(( $(date +%s) - 900 )); E=$(date +%s)
+kubectl get --raw "/api/v1/namespaces/monitoring/services/loki:3100/proxy/loki/api/v1/patterns?query=%7Bk8s_namespace_name%3D%22kube-system%22%7D&start=$S&end=$E"
+```
+
 **Instrumentar um app** (Java, Node.js, Python ou .NET) sem mudar o código: anote o template do pod e
 reinicie. O webhook do operator injeta o SDK, que manda traces, métricas e logs ao `otel-agent` do nó.
 

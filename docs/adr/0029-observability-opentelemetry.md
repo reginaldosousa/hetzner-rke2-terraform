@@ -20,7 +20,8 @@ Um pipeline OpenTelemetry para os três sinais, terminando no Grafana que já ex
     próprio nó, sem hostPort) e acrescenta os atributos do pod (`k8s_attributes`).
   - `otel-cluster`, uma réplica, transforma os Events do Kubernetes em logs.
 - **Logs: Loki** em modo single binary, índice e chunks no R2 (`rke2-loki`), retenção de 30 dias pelo
-  compactor. Recebe OTLP nativo em `/otlp`. Não tem gateway, caches nem canary.
+  compactor. Recebe OTLP nativo em `/otlp`. Não tem gateway, caches nem canary. O pattern ingester fica ligado
+  para o Logs Drilldown do Grafana (ver Atualizações).
 - **Traces: Tempo 3** em modo single binary, blocos no R2 (`rke2-tempo`), retenção de 7 dias. O
   metrics-generator manda métricas de span e o service graph ao Prometheus por remote-write.
 - **Métricas: o Prometheus que já existe.** Ele liga o receiver OTLP (métricas dos apps, pelos collectors) e o
@@ -66,3 +67,9 @@ Um pipeline OpenTelemetry para os três sinais, terminando no Grafana que já ex
   Local`). Durante o rollout do DaemonSet, os spans daquele nó se perdem por alguns segundos.
 - Os buckets `rke2-loki` e `rke2-tempo` são `prevent_destroy`. O `monitoring` continua fora do Velero: os dados
   estão no R2 e o resto é recriado pelo Terraform.
+
+## Atualizações
+- **2026-10-29:** O Loki liga o pattern ingester (`loki.pattern_ingester.enabled`). Sem ele, o
+  `/loki/api/v1/patterns` responde 404 e a aba Patterns do Logs Drilldown do Grafana falha. Custa um pouco mais
+  de memória no mesmo processo. O Drilldown precisa estar com o datasource **Loki** selecionado: com o
+  Prometheus (o padrão do Grafana), as chamadas a `index/volume` dão 404.
