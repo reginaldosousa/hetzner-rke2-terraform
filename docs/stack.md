@@ -187,6 +187,22 @@ alternativas descartadas.
   de um bot. O Watchdog vai para um dead man's switch externo, porque um gateway fora do ar silencia os alertas.
 - **ADR:** [0021](adr/0021-monitoring-telegram.md)
 
+### OpenTelemetry Collector + Operator
+- **Papel:** `otel-agent` (DaemonSet, masters inclusive) lê os logs dos pods e recebe OTLP dos apps no próprio
+  nó; `otel-cluster` manda os Events do Kubernetes para o Loki. O Operator injeta o SDK nos pods anotados com
+  `instrumentation.opentelemetry.io/inject-<linguagem>: "monitoring/default"`.
+- **Por quê:** um agente só para logs, traces e métricas, no padrão aberto que os SDKs já falam. A
+  auto-instrumentação dá traces sem mudar o código do app.
+- **ADR:** [0029](adr/0029-observability-opentelemetry.md)
+
+### Loki e Tempo
+- **Papel:** Loki guarda os logs (30 dias) e Tempo os traces (7 dias), os dois em modo single binary com os
+  dados no R2 (`rke2-loki`, `rke2-tempo`). O Tempo gera métricas de span e o service graph no Prometheus. No
+  Grafana, um log abre o trace dele e vice-versa.
+- **Por quê:** encaixam no Grafana e no Prometheus que já existem, e cabem nos nós de 4 GB. O R2 não cobra
+  egress e sobrevive à perda do cluster.
+- **ADR:** [0029](adr/0029-observability-opentelemetry.md)
+
 ### Snapshots do etcd no R2
 - **Papel:** snapshot a cada 6 h, local e no bucket `rke2-etcd-snapshots`, 7 dias.
 - **Por quê:** é a forma de recuperar o control plane se os três masters se perderem. Usa um mecanismo nativo do
@@ -217,15 +233,16 @@ alternativas descartadas.
 - **ADR:** [0007](adr/0007-state-cloudflare-r2.md)
 
 ### Cloudflare (provider Terraform)
-- **Papel:** cria os buckets R2 de backup (etcd e Velero) e os tokens de conta de escopo mínimo usados no
-  cluster (um por bucket e um de DNS).
+- **Papel:** cria os buckets R2 (etcd, Velero, Headscale, Loki e Tempo) e os tokens de conta de escopo mínimo
+  usados no cluster (um por bucket e um de DNS).
 - **Por quê:** os tokens viram código revisável e rotacionável. O token do provider pode criar tokens, então fica
   só no `terraform.tfvars` do operador e nunca entra no cluster.
 - **ADR:** [0019](adr/0019-etcd-snapshots-r2.md)
 
 ### Helm (provider Terraform + charts locais)
-- **Papel:** instala Karpenter, external-dns, cert-manager, kube-prometheus-stack, kured e Velero. Charts locais carregam os recursos que dependem de
-  CRDs (NodeClass, NodePool, ClusterIssuers).
+- **Papel:** instala Karpenter, external-dns, cert-manager, kube-prometheus-stack, Loki, Tempo, OpenTelemetry
+  (collectors e operator), kured e Velero. Charts locais carregam os recursos que dependem de CRDs (NodeClass,
+  NodePool, ClusterIssuers, Instrumentation).
 - **Por quê:** `kubernetes_manifest` precisa do CRD já instalado na hora do plan. Um chart local resolve isso
   e ainda pode ser verificado com `helm lint` e `helm template`.
 - **ADR:** [0014](adr/0014-local-helm-charts-for-crds.md)
@@ -261,6 +278,9 @@ alternativas descartadas.
 | external-dns | `external_dns_chart_version` | `1.23.0` |
 | cert-manager | `cert_manager_chart_version` | `v1.21.3` |
 | kube-prometheus-stack | `kube_prometheus_stack_chart_version` | `92.14.0` |
+| Loki / Tempo (grafana-community) | `loki_chart_version` / `tempo_chart_version` | `20.0.3` / `3.2.1` |
+| OpenTelemetry Collector (chart / imagem) | `otel_collector_chart_version` / `otel_collector_version` | `0.178.0` / `0.163.2` |
+| OpenTelemetry Operator | `otel_operator_chart_version` | `0.128.0` |
 | kured | `kured_chart_version` | `6.1.0` |
 | Velero / plugin AWS | `velero_chart_version` / `velero_aws_plugin_version` | `12.2.1` / `v1.14.4` |
 | Instalador do RKE2 | `rke2_install_sha256` | sha256 do `install.sh` da tag |

@@ -133,13 +133,14 @@ flowchart TB
         kb["Secret karpenter-worker-bootstrap (userData dos workers)"]
         kp["Karpenter (nos masters) → chart local nodepools"]
         tr["HelmChartConfig do Traefik → CCM cria o LB de ingress"]
-        cfr["buckets R2 + tokens de escopo mínimo → Secrets etcd-s3, Velero, DNS · credenciais do Litestream (output)"]
+        cfr["buckets R2 + tokens de escopo mínimo → Secrets etcd-s3, Velero, DNS, Loki, Tempo · credenciais do Litestream (output)"]
         dns["external-dns · cert-manager → chart local cluster-issuers"]
         sec["tier metadata-guard · kured · placeholders (2 workers)"]
         mon["kube-prometheus-stack (Telegram + dead man's switch)"]
         vel["Velero (depois do Prometheus, que traz os CRDs)"]
+        otel["Loki + Tempo (R2) · OTel collectors · OTel operator → chart local otel-instrumentation"]
         pid["Pocket ID + RBAC OIDC + registro DNS do Headscale"]
-        hs ~~~ kb ~~~ kp ~~~ tr ~~~ cfr ~~~ dns ~~~ sec ~~~ mon --> vel ~~~ pid
+        hs ~~~ kb ~~~ kp ~~~ tr ~~~ cfr ~~~ dns ~~~ sec ~~~ mon --> vel ~~~ otel ~~~ pid
     end
     cluster --> setup["Pocket ID: admin com passkey em /setup → API key"]
     setup --> ident["terraform/identity apply<br/>grupos k8s-admins/vpn, clients kubectl e headscale"]

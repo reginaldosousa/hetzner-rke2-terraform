@@ -54,8 +54,9 @@ flowchart TB
 | Karpenter, NodeClass, NodePool, Traefik LB, external-dns, cert-manager | `terraform/cluster/` |
 | Worker floor, kured | `terraform/cluster/capacity.tf`, `kured.tf` |
 | Metadata block (Calico tier) | `terraform/cluster/metadata-guard.tf` |
-| R2 buckets + scoped Cloudflare tokens, etcd-s3 Secret | `terraform/cluster/etcd-snapshots.tf`, `dns-token.tf`, `velero.tf`, `headscale-backup.tf` |
+| R2 buckets + scoped Cloudflare tokens, etcd-s3 Secret | `terraform/cluster/etcd-snapshots.tf`, `dns-token.tf`, `velero.tf`, `headscale-backup.tf`, `observability-storage.tf` |
 | Monitoring, Velero | `terraform/cluster/monitoring.tf`, `velero.tf` |
+| Logs and traces (OpenTelemetry, Loki, Tempo) | `terraform/cluster/otel-collector.tf`, `otel-operator.tf`, `loki.tf`, `tempo.tf` |
 
 Three Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
 Kubernetes and therefore runs **over the VPN**; `identity` manages Pocket ID
@@ -108,7 +109,7 @@ export KUBECONFIG=$PWD/../../kubeconfig
 kubectl get nodes                               # 3 masters, NotReady/uninitialized is expected
 
 # 4. In-cluster: hcloud secret (unblocks CCM/CSI), Karpenter, NodePool, R2 buckets
-#    and tokens, monitoring, Velero, kured, worker floor
+#    and tokens, monitoring, logs and traces, Velero, kured, worker floor
 cd ../cluster
 cp terraform.tfvars.example terraform.tfvars   # Cloudflare, Telegram, zones, ACME email
 terraform init && terraform apply
@@ -153,7 +154,7 @@ kubectl get nodeclaims -w                       # new servers appear and join
 kubectl delete deployment inflate               # consolidation removes the extra workers after ~5m
 
 kubectl -n capacity get pods -o wide            # one placeholder per location keeps 2 workers
-kubectl -n monitoring get pods                  # Prometheus, Alertmanager, Grafana
+kubectl -n monitoring get pods                  # Prometheus, Alertmanager, Grafana, Loki, Tempo, otel-*
 kubectl -n velero get backupstoragelocation     # PHASE=Available
 kubectl get etcdsnapshotfiles                   # local and s3:// entries
 ```
@@ -259,6 +260,11 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
   `k8s-admins` are Admins, `vpn` members Viewers, and the `admin` password is only
   break-glass (`/login?disableAutoLogin=true`). Prometheus and Alertmanager
   are still reached with `kubectl -n monitoring port-forward`.
+- **Logs and traces** (ADR 0029): an OpenTelemetry Collector on every node ships pod logs
+  and Kubernetes Events to Loki and apps' traces to Tempo, both stored in R2 and linked
+  in Grafana. Annotate a pod with
+  `instrumentation.opentelemetry.io/inject-<java|nodejs|python|dotnet>: "monitoring/default"`
+  for traces without code changes (docs/operations.md, "Logs e traces").
 - **Backups**: etcd snapshots every 6 h and Velero daily, 7 days each, in R2, plus
   Headscale's database streamed there by Litestream (ADR 0026).
   Restore runbooks are in docs/operations.md.
@@ -310,6 +316,8 @@ infrastructure: applies run locally over the VPN from a reviewed plan.
 | karpenter-provider-hetzner chart | 3.0.1 |
 | external-dns / cert-manager charts | 1.23.0 / v1.21.3 |
 | kube-prometheus-stack chart | 92.14.0 |
+| Loki / Tempo charts (grafana-community) | 20.0.3 / 3.2.1 |
+| OpenTelemetry Collector chart / image, Operator chart | 0.178.0 / 0.163.2, 0.128.0 |
 | kured chart | 6.1.0 |
 | Velero chart / AWS plugin | 12.2.1 / v1.14.4 |
 | Terraform hcloud / cloudflare providers | ~> 1.70 / ~> 5.28 |

@@ -277,6 +277,37 @@ kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093  
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090        # Status > Targets
 ```
 
+## Logs e traces
+
+Logs de todos os pods e os Events do Kubernetes vão para o Loki (30 dias), e traces para o Tempo (7 dias), os
+dois com os dados no R2 ([ADR 0029](adr/0029-observability-opentelemetry.md)). Consulte pelo Grafana, em
+**Explore**:
+
+```bash
+# Loki (LogQL). Os atributos do pod viram labels: k8s_namespace_name, k8s_pod_name, k8s_container_name, service_name.
+{k8s_namespace_name="kube-system"} |= "error"
+{service_name="k8s-events"} | json | object_reason="FailedScheduling"       # Events
+# Tempo (TraceQL)
+{ resource.service.name = "minha-app" && duration > 500ms }
+```
+
+**Instrumentar um app** (Java, Node.js, Python ou .NET) sem mudar o código: anote o template do pod e
+reinicie. O webhook do operator injeta o SDK, que manda traces, métricas e logs ao `otel-agent` do nó.
+
+```bash
+kubectl -n <ns> patch deployment <app> --type merge -p \
+  '{"spec":{"template":{"metadata":{"annotations":{"instrumentation.opentelemetry.io/inject-java":"monitoring/default"}}}}}'
+kubectl -n <ns> get pod -l app=<app> -o jsonpath='{.items[0].spec.initContainers[*].name}'   # opentelemetry-auto-instrumentation-java
+```
+
+Apps com o SDK próprio (ou em Go) mandam OTLP para `http://otel-agent.monitoring:4318` (HTTP) ou `:4317`
+(gRPC). A amostragem é `otel_trace_sample_ratio` (padrão 1, todos os traces novos).
+
+```bash
+kubectl -n monitoring get pods -l app.kubernetes.io/name=opentelemetry-collector -o wide   # um agent por nó
+kubectl -n monitoring logs ds/otel-agent | grep -i error                                  # falhas de envio
+```
+
 ## Aplicações internas
 
 Nomes em `internal_domain` (`int.devcomm.com.br`) só existem pela VPN: o dnsmasq do gateway responde qualquer

@@ -30,6 +30,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Credenciais R2 (snapshots do etcd) | token criado pelo `cluster` → Secret `kube-system/rke2-etcd-snapshot-s3` | RKE2 nos masters; escopo só no bucket `rke2-etcd-snapshots` |
 | Token do bot do Telegram / URL do dead man's switch | state do `cluster` → Secret `monitoring/alertmanager-receivers` | Alertmanager |
 | Credenciais R2 (Velero) | token criado pelo `cluster` → Secret `velero/velero-r2` | Velero; escopo só no bucket `rke2-velero` |
+| Credenciais R2 (Loki e Tempo) | tokens criados pelo `cluster` → Secrets `monitoring/loki-r2` e `monitoring/tempo-r2` | Loki e Tempo, por variável de ambiente; escopo só no bucket de cada um |
 | Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
 | API key do Pocket ID | `terraform/identity/terraform.tfvars` | operador; admin total das identidades, com validade, **nunca** vai para o cluster |
 | Secret do client OIDC do Headscale | state do `identity` → `terraform.tfvars` do `infra` → `/etc/headscale/oidc_client_secret` no gateway | Headscale; o `sync-gateway.sh` nunca mostra o conteúdo |
@@ -68,7 +69,7 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   fechados para eles. No sentido contrário nada passa: um pod comprometido não alcança o laptop de um operador.
 - **Instalador do RKE2 fixado**: os nós baixam o `install.sh` da tag de `rke2_version` e só o executam se o
   sha256 bater com `rke2_install_sha256`. O próprio script confere os checksums do tarball da release.
-- **Tokens Cloudflare de escopo mínimo, criados pelo Terraform**: um por bucket R2 (etcd, Velero, Headscale) e um de DNS
+- **Tokens Cloudflare de escopo mínimo, criados pelo Terraform**: um por bucket R2 (etcd, Velero, Headscale, Loki, Tempo) e um de DNS
   (Zone Read + DNS Write nas zonas gerenciadas). O token de provisionamento, que cria tokens, fica só com o
   operador. O token do etcd não lê o bucket do state (testado: `AccessDenied`).
 - **Backups fora do cluster**: snapshots do etcd e backups do Velero no R2, com alertas de falha
@@ -102,7 +103,7 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   token. Pods comuns são bloqueados pelo tier `metadata-guard` do Calico
   ([ADR 0017](adr/0017-block-instance-metadata-for-pods.md)). Ainda leem: o `hcloud-csi` (exceção) e pods com
   `hostNetwork`, que só podem existir no `kube-system`.
-- **Namespaces `privileged`**: `monitoring` (node-exporter) e `velero` (node agent) aceitam `hostPath` e
+- **Namespaces `privileged`**: `monitoring` (node-exporter e `otel-agent`, que lê `/var/log/pods`) e `velero` (node agent) aceitam `hostPath` e
   `hostNetwork`. Quem pode criar pods neles tem root nos nós. Os dois são gerenciados só pelo Terraform.
 - **Wildcard interno**: quem lê o Secret `kube-system/internal-wildcard-tls` pode se passar por qualquer
   aplicação interna para quem resolver o nome até ele, o que só acontece pela VPN ou com DNS sequestrado.
@@ -111,7 +112,8 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   Um `tfvars` ou `kubeconfig` commitado por engano seria público na hora, por isso o `.gitignore` e a push
   protection importam.
 - **Snapshots e backups têm todo o conteúdo do cluster**: os buckets `rke2-etcd-snapshots` e `rke2-velero` devem
-  ser tratados como sensíveis. Os Secrets estão cifrados no etcd (`secrets-encryption` do RKE2), mas o resto não.
+  ser tratados como sensíveis. O `rke2-loki` também: tem tudo o que os pods imprimem, inclusive um segredo que
+  um app logue por engano. No Grafana, quem é Viewer (grupo `vpn`) lê esses logs. Os Secrets estão cifrados no etcd (`secrets-encryption` do RKE2), mas o resto não.
 - **Masters `cax11` (4 GB)**: usavam de 37% a 49% da memória sem carga, antes do node-exporter e dos agentes. O
   upgrade para `cax21` foi adiado, e os alertas de memória do kube-prometheus-stack avisam se apertar.
 - **Kubeconfig de admin compartilhado**: um único certificado `cluster-admin`, sem revogação individual. Quando
