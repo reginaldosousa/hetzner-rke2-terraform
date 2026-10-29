@@ -181,6 +181,13 @@ variable "loki_chart_version" {
 }
 
 
+variable "tempo_chart_version" {
+  description = "grafana-community tempo (single binary) chart version."
+  type        = string
+  default     = "3.2.1"
+}
+
+
 variable "loki_bucket" {
   description = "R2 bucket for Loki's chunks and index."
   type        = string
@@ -199,5 +206,12 @@ variable "loki_retention" {
   description = "How long Loki keeps logs (a duration, e.g. 720h)."
   type        = string
   default     = "720h"
+}
+
+
+variable "tempo_retention" {
+  description = "How long Tempo keeps traces (a duration, e.g. 168h)."
+  type        = string
+  default     = "168h"
 }
 
