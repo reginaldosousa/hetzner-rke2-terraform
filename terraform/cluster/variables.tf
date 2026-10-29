@@ -148,6 +148,16 @@ variable "pocket_id_version" {
   default     = "v2.19.1"
 }
 
+variable "grafana_oidc" {
+  description = "Grafana's Pocket ID client, from terraform/identity output grafana_oidc (grafana-oidc.auto.tfvars.json, docs/operations.md). null keeps password-only login, e.g. before identity exists."
+  type = object({
+    client_id     = string
+    client_secret = string
+  })
+  default   = null
+  sensitive = true
+}
+
 variable "pocket_id_allowed_cidrs" {
   description = "Public source ranges allowed to reach Pocket ID; [] makes it public. Keep it to your own IP (e.g. [\"203.0.113.7/32\"]) until the first admin is created at /setup, since until then anyone could create it."
   type        = list(string)

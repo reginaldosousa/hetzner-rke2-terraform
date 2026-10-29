@@ -116,7 +116,7 @@ resource "helm_release" "kube_prometheus_stack" {
   chart      = "kube-prometheus-stack"
   version    = var.kube_prometheus_stack_chart_version
 
-  values = [yamlencode({
+  values = concat([yamlencode({
     kubeEtcd              = merge(local.control_plane_endpoints, { service = { port = 2381, targetPort = 2381 } })
     kubeControllerManager = local.control_plane_endpoints
     kubeScheduler         = local.control_plane_endpoints
@@ -187,6 +187,67 @@ resource "helm_release" "kube_prometheus_stack" {
           "traefik.ingress.kubernetes.io/router.tls"         = "true"
         }
         hosts = ["grafana.${local.internal_domain}"]
+      }
+    }
+  })], local.grafana_oidc_values)
+}
+
+# Grafana login through Pocket ID (client in terraform/identity), once
+# grafana_oidc is set; until then only the admin password works. k8s-admins
+# are Admins, vpn members Viewers, anyone else is refused. The admin user
+# stays as break-glass at /login?disableAutoLogin=true.
+resource "kubernetes_secret_v1" "grafana_oidc" {
+  count = local.grafana_oidc ? 1 : 0
+
+  metadata {
+    name      = "grafana-oidc"
+    namespace = kubernetes_namespace_v1.monitoring.metadata[0].name
+  }
+
+  data = {
+    client-secret = var.grafana_oidc.client_secret
+  }
+}
+
+locals {
+  # Whether it is set is not itself secret; count can't use sensitive values.
+  grafana_oidc = nonsensitive(var.grafana_oidc != null)
+  # A separate values document, so the main one stays a single object type.
+  grafana_oidc_values = !local.grafana_oidc ? [] : [yamlencode({
+    grafana = {
+      # Read from the Secret at runtime: never in the Helm values or the ConfigMap.
+      envValueFrom = {
+        GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET = {
+          secretKeyRef = { name = kubernetes_secret_v1.grafana_oidc[0].metadata[0].name, key = "client-secret" }
+        }
+      }
+      "grafana.ini" = {
+        auth = {
+          signout_redirect_url = "${local.infra.oidc_issuer_url}/api/oidc/end-session"
+        }
+        "auth.generic_oauth" = {
+          enabled   = true
+          name      = "Pocket ID"
+          client_id = var.grafana_oidc.client_id
+          scopes    = "openid profile email groups"
+          auth_url  = "${local.infra.oidc_issuer_url}/authorize"
+          token_url = "${local.infra.oidc_issuer_url}/api/oidc/token"
+          api_url   = "${local.infra.oidc_issuer_url}/api/oidc/userinfo"
+          use_pkce  = true
+          # Straight to Pocket ID; break-glass at /login?disableAutoLogin=true.
+          auto_login    = true
+          allow_sign_up = true
+          # Pocket ID's client already admits only these groups; this is the
+          # second check, and the role is re-synced at every login.
+          groups_attribute_path = "groups"
+          allowed_groups        = "k8s-admins vpn"
+          role_attribute_path   = "contains(groups[*], 'k8s-admins') && 'Admin' || contains(groups[*], 'vpn') && 'Viewer'"
+          role_attribute_strict = true
+          skip_org_role_sync    = false
+          login_attribute_path  = "preferred_username"
+          name_attribute_path   = "name"
+          email_attribute_path  = "email"
+        }
       }
     }
   })]
