@@ -173,3 +173,17 @@ variable "oidc_admin_group" {
   type        = string
   default     = "k8s-admins"
 }
+
+variable "loki_bucket" {
+  description = "R2 bucket for Loki's chunks and index."
+  type        = string
+  default     = "rke2-loki"
+}
+
+
+variable "tempo_bucket" {
+  description = "R2 bucket for Tempo's trace blocks."
+  type        = string
+  default     = "rke2-tempo"
+}
+
