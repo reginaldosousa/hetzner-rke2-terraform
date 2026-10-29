@@ -1,0 +1,15 @@
+# Apps opt in per pod template with an annotation naming this object, e.g.
+# instrumentation.opentelemetry.io/inject-java: "{{ .Release.Namespace }}/default".
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: default
+spec:
+  exporter:
+    endpoint: {{ required "endpoint is required" .Values.endpoint | quote }}
+  propagators:
+    - tracecontext
+    - baggage
+  sampler:
+    type: parentbased_traceidratio
+    argument: {{ .Values.sampleRatio | quote }}

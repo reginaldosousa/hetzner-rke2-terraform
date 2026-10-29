@@ -180,13 +180,17 @@ variable "loki_chart_version" {
   default     = "20.0.3"
 }
 
-
 variable "tempo_chart_version" {
   description = "grafana-community tempo (single binary) chart version."
   type        = string
   default     = "3.2.1"
 }
 
+variable "otel_operator_chart_version" {
+  description = "open-telemetry opentelemetry-operator chart version."
+  type        = string
+  default     = "0.128.0"
+}
 
 variable "otel_collector_chart_version" {
   description = "open-telemetry opentelemetry-collector chart version."
@@ -194,13 +198,11 @@ variable "otel_collector_chart_version" {
   default     = "0.178.0"
 }
 
-
 variable "otel_collector_version" {
   description = "otel/opentelemetry-collector-contrib image tag; keep it at the collector chart's appVersion."
   type        = string
   default     = "0.163.2"
 }
-
 
 variable "loki_bucket" {
   description = "R2 bucket for Loki's chunks and index."
@@ -208,13 +210,11 @@ variable "loki_bucket" {
   default     = "rke2-loki"
 }
 
-
 variable "tempo_bucket" {
   description = "R2 bucket for Tempo's trace blocks."
   type        = string
   default     = "rke2-tempo"
 }
-
 
 variable "loki_retention" {
   description = "How long Loki keeps logs (a duration, e.g. 720h)."
@@ -222,10 +222,19 @@ variable "loki_retention" {
   default     = "720h"
 }
 
-
 variable "tempo_retention" {
   description = "How long Tempo keeps traces (a duration, e.g. 168h)."
   type        = string
   default     = "168h"
 }
 
+variable "otel_trace_sample_ratio" {
+  description = "Share of new traces auto-instrumented apps record, 0 to 1 (child spans follow their parent's decision)."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.otel_trace_sample_ratio >= 0 && var.otel_trace_sample_ratio <= 1
+    error_message = "otel_trace_sample_ratio must be between 0 and 1."
+  }
+}

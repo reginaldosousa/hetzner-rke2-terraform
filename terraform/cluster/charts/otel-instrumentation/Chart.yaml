@@ -1,0 +1,5 @@
+apiVersion: v2
+name: otel-instrumentation
+description: OpenTelemetry Instrumentation that the operator injects into opted-in pods.
+type: application
+version: 0.1.0
