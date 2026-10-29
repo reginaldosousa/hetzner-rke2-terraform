@@ -188,6 +188,20 @@ variable "tempo_chart_version" {
 }
 
 
+variable "otel_collector_chart_version" {
+  description = "open-telemetry opentelemetry-collector chart version."
+  type        = string
+  default     = "0.178.0"
+}
+
+
+variable "otel_collector_version" {
+  description = "otel/opentelemetry-collector-contrib image tag; keep it at the collector chart's appVersion."
+  type        = string
+  default     = "0.163.2"
+}
+
+
 variable "loki_bucket" {
   description = "R2 bucket for Loki's chunks and index."
   type        = string
