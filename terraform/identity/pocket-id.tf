@@ -53,6 +53,23 @@ resource "pocketid_client" "headscale" {
   }
 }
 
+# Grafana, reached only over the VPN (docs/adr/0027): confidential client with
+# PKCE. Members of either group may sign in; Grafana maps k8s-admins to Admin
+# and vpn to Viewer (terraform/cluster/monitoring.tf). Its ID and secret go to
+# cluster's grafana_oidc.
+resource "pocketid_client" "grafana" {
+  name                = "grafana"
+  is_public           = false
+  pkce_enabled        = true
+  callback_urls       = ["https://grafana.${local.infra.internal_domain}/login/generic_oauth"]
+  allowed_user_groups = [pocketid_group.k8s_admins.id, pocketid_group.vpn.id]
+
+  lifecycle {
+    # A new client means a new secret: Grafana logins fail until cluster is reapplied.
+    prevent_destroy = true
+  }
+}
+
 resource "pocketid_user" "this" {
   for_each = var.users
 

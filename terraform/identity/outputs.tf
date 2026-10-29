@@ -13,3 +13,12 @@ output "headscale_oidc_client_secret" {
   value       = one(pocketid_client.headscale[*].client_secret)
   sensitive   = true
 }
+
+output "grafana_oidc" {
+  description = "Set as grafana_oidc in terraform/cluster (grafana-oidc.auto.tfvars.json, see docs/operations.md). Pocket ID only returns the secret when the client is created."
+  value = {
+    client_id     = pocketid_client.grafana.id
+    client_secret = pocketid_client.grafana.client_secret
+  }
+  sensitive = true
+}
