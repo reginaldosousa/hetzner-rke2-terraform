@@ -1,0 +1,36 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "pg-cluster.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  instances: {{ .Values.instances }}
+  imageName: {{ .Values.imageName | quote }}
+  bootstrap:
+    initdb:
+      database: {{ required "database is required" .Values.database }}
+      owner: {{ required "owner is required" .Values.owner }}
+  storage:
+    size: {{ .Values.storageSize }}
+  resources:
+    {{- toYaml .Values.resources | nindent 4 }}
+  {{- with .Values.parameters }}
+  postgresql:
+    parameters:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
+  # Primary and replica in different locations; a lost location promotes the other.
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: topology.kubernetes.io/zone
+    podAntiAffinityType: preferred
+  enablePDB: true
+  inheritedMetadata:
+    annotations:
+      # A file copy of a running Postgres isn't consistent; Barman backs it up.
+      backup.velero.io/backup-volumes-excludes: pgdata,pg-wal
+  plugins:
+    - name: {{ include "pg-cluster.plugin" . }}
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ include "pg-cluster.name" . }}

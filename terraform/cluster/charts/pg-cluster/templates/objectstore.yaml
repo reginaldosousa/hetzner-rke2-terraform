@@ -1,0 +1,29 @@
+{{- $b := .Values.backup }}
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: {{ include "pg-cluster.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  configuration:
+    destinationPath: {{ printf "s3://%s/%s" (required "backup.bucket is required" $b.bucket) (required "backup.prefix is required" $b.prefix) | quote }}
+    endpointURL: {{ required "backup.endpointURL is required" $b.endpointURL | quote }}
+    s3Credentials:
+      accessKeyId:
+        name: {{ required "backup.credentialsSecret is required" $b.credentialsSecret }}
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: {{ $b.credentialsSecret }}
+        key: ACCESS_SECRET_KEY
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
+  retentionPolicy: {{ $b.retention | quote }}
+  instanceSidecarConfiguration:
+    env:
+      # R2 rejects the checksums newer AWS SDKs (boto3 in barman-cloud) send by default.
+      - name: AWS_REQUEST_CHECKSUM_CALCULATION
+        value: when_required
+      - name: AWS_RESPONSE_CHECKSUM_VALIDATION
+        value: when_required

@@ -6,7 +6,7 @@
 flowchart TB
     internet((Internet))
     subgraph external["Serviços externos"]
-        r2[("Cloudflare R2<br/>state, snapshots do etcd, Velero, Headscale, MongoDB")]
+        r2[("Cloudflare R2<br/>state, snapshots do etcd, Velero, Headscale, MongoDB, Postgres")]
         tg["Telegram<br/>alertas"]
         hc["healthchecks.io<br/>dead man's switch"]
         cf["Cloudflare DNS"]

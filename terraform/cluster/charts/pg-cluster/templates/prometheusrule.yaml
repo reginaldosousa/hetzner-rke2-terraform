@@ -1,0 +1,31 @@
+{{- $name := include "pg-cluster.name" . }}
+{{- $sel := printf "namespace=%q, pod=~%q" .Release.Namespace (printf "%s-[0-9]+" $name) }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  groups:
+    - name: {{ $name }}
+      rules:
+        - alert: PostgresWALArchivingFailing
+          expr: increase(cnpg_pg_stat_archiver_failed_count{ {{- $sel -}} }[15m]) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: {{ printf "%s/%s can't archive WAL to R2; PITR is falling behind." .Release.Namespace $name | quote }}
+        - alert: PostgresReplicaLagging
+          expr: max(cnpg_pg_replication_lag{ {{- $sel -}} }) > 300
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: {{ printf "%s/%s replica is more than 5 minutes behind." .Release.Namespace $name | quote }}
+        - alert: PostgresNoRecentBackup
+          expr: time() - max({__name__=~".*barman_cloud_cloudnative_pg_io_last_available_backup_timestamp", {{ $sel }}}) > 36 * 3600
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: {{ printf "No base backup of %s/%s in 36h." .Release.Namespace $name | quote }}

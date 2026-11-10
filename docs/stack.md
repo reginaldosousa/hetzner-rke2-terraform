@@ -225,6 +225,14 @@ alternativas descartadas.
   o que um chart com StatefulSet não faz. Imagens multi-arch, licença Apache 2.0.
 - **ADR:** [0030](adr/0030-mongodb-percona-operator.md)
 
+### PostgreSQL (CloudNativePG)
+- **Papel:** o operator (namespace `cnpg-system`) roda todo Postgres do cluster. Cada banco é uma release do chart
+  local `charts/pg-cluster` no namespace do app: 2 instâncias em locations diferentes, WAL contínuo e backup base
+  diário no bucket `rke2-postgres` pelo plugin Barman Cloud (14 dias, PITR), PodMonitor e alertas.
+- **Por quê:** failover sem Patroni, projeto da CNCF, imagens multi-arch, e o Secret `<banco>-app` nasce ao lado
+  do app que o usa.
+- **ADR:** [0031](adr/0031-postgres-cloudnativepg.md)
+
 ## Infraestrutura como código e operação
 
 ### Terraform (≥ 1.10, < 2.0), três roots
@@ -243,7 +251,7 @@ alternativas descartadas.
 - **ADR:** [0007](adr/0007-state-cloudflare-r2.md)
 
 ### Cloudflare (provider Terraform)
-- **Papel:** cria os buckets R2 (etcd, Velero, Headscale, Loki, Tempo e MongoDB) e os tokens de conta de escopo mínimo
+- **Papel:** cria os buckets R2 (etcd, Velero, Headscale, Loki, Tempo, MongoDB e Postgres) e os tokens de conta de escopo mínimo
   usados no cluster (um por bucket e um de DNS).
 - **Por quê:** os tokens viram código revisável e rotacionável. O token do provider pode criar tokens, então fica
   só no `terraform.tfvars` do operador e nunca entra no cluster.

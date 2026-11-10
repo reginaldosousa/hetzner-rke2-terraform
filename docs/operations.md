@@ -303,6 +303,42 @@ spec:
 YAML
 ```
 
+## PostgreSQL (CloudNativePG)
+
+Cada banco é um `Cluster` no namespace do app, criado pelo `charts/pg-cluster`, com WAL e backups base no R2
+`rke2-postgres/<cluster_name>/<banco>/`, 14 dias ([ADR 0031](adr/0031-postgres-cloudnativepg.md)). O plugin
+`cnpg` do kubectl ajuda (`kubectl krew install cnpg`).
+
+```bash
+kubectl get clusters.postgresql.cnpg.io,backups.postgresql.cnpg.io -A
+kubectl cnpg status <banco> -n <ns>                  # primária, réplica, WAL arquivado, último backup
+kubectl cnpg psql <banco> -n <ns>                    # psql como superuser
+kubectl cnpg backup <banco> -n <ns> --method plugin --plugin-name barman-cloud.cloudnative-pg.io
+kubectl cnpg promote <banco> -n <ns> <banco>-2       # switchover manual
+```
+
+Restore é sempre um `Cluster` novo, criado a partir do `ObjectStore` do antigo (backup mais recente, ou um ponto
+no tempo com `recoveryTarget`). Depois de conferir os dados, aponte o app para ele (ou renomeie).
+
+```yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata: {name: <banco>-restore, namespace: <ns>}
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.11-standard-trixie
+  storage: {size: 10Gi}
+  bootstrap:
+    recovery:
+      source: origem
+      # recoveryTarget: {targetTime: "2026-11-10 13:00:00+00"}
+  externalClusters:
+    - name: origem
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters: {barmanObjectName: <banco>, serverName: <banco>}
+```
+
 ## Monitoramento
 
 Alertas vão para o Telegram (`telegram_chat_id`), e o `Watchdog` para o dead man's switch
