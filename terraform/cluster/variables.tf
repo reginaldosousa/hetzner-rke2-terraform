@@ -363,7 +363,7 @@ variable "tsuru_registry" {
 }
 
 variable "tsuru_oidc_valid_claims" {
-  description = "Extra claims Tsuru requires in Pocket ID tokens, compared as plain strings (e.g. { azp = \"<client id>\" } once confirmed, ADR 0035)."
+  description = "Extra claims Tsuru requires in Pocket ID access tokens, compared as plain strings. Pocket ID has no string claim that names the client today (ADR 0035)."
   type        = map(string)
   default     = {}
 }

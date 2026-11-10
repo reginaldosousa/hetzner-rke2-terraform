@@ -45,7 +45,6 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Senha do robot `tsuru` do Harbor | state do `registry` (`random_password`) → output `tsuru_registry` | Tsuru (push no build, pull nos pods dos apps) |
 | Senha do router do Tsuru | state do `cluster` (`random_password`) → Secrets `tsuru-system/tsuru-api-env` e `kubernetes-router` | API do Tsuru (variável de ambiente, nunca no ConfigMap) |
 | Credencial de push do Harbor para o Tsuru | state do `registry` → `tsuru-registry.auto.tfvars.json` do `cluster` → Secret do deploy-agent em `tsuru-build`; a de pull vai para os dados do cluster no MongoDB (`docker-config-json`) | BuildKit (push), pods dos apps (pull) |
-| Usuário root do Tsuru (native) | MongoDB do Tsuru (hash), criado no bootstrap | break-glass do Tsuru; o login normal é pelo Pocket ID |
 | Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
 | API key do Pocket ID | `terraform/identity/terraform.tfvars` | operador; admin total das identidades, com validade, **nunca** vai para o cluster |
 | Secret do client OIDC do Headscale | state do `identity` → `terraform.tfvars` do `infra` → `/etc/headscale/oidc_client_secret` no gateway | Headscale; o `sync-gateway.sh` nunca mostra o conteúdo |

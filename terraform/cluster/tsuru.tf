@@ -165,12 +165,12 @@ resource "helm_release" "tsuru_api" {
       database = { mongodbURL = "$MONGODB_URL", databaseName = "tsuru" }
       queue    = { mongodbURL = "$MONGODB_URL", databaseName = "tsuru" }
 
-      # Pocket ID first; native only for the break-glass root (ADR 0035).
+      # Pocket ID only (ADR 0035). OIDC can't create users through the API, so
+      # POST /users answers 501: user-registration only lets a Pocket ID login
+      # create its own user. Adding "native" here would reopen anonymous signup.
       authBlock = {
-        scheme            = "multi"
+        scheme            = "oidc"
         user-registration = true
-        multi             = { schemes = ["oidc", "native"], default-scheme = "oidc" }
-        native            = { token-expire-days = 1, hash-cost = 12 }
         oidc = {
           client-id        = var.tsuru_oidc.client_id
           scopes           = ["openid", "email", "profile", "groups"]
@@ -179,7 +179,9 @@ resource "helm_release" "tsuru_api" {
           jwks-url         = "${local.infra.oidc_issuer_url}/.well-known/jwks.json"
           callback-port    = var.tsuru_oidc.callback_port
           groups-in-claims = true
-          # Tsuru doesn't check the audience (ADR 0035); iss at least pins the issuer.
+          # Tsuru doesn't check the audience, and Pocket ID's access tokens carry
+          # no azp/client_id and a list aud, which plain-string valid-claims
+          # can't match (ADR 0035). iss at least pins the issuer.
           valid-claims = merge({ iss = local.infra.oidc_issuer_url }, var.tsuru_oidc_valid_claims)
         }
       }

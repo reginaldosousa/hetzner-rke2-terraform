@@ -496,10 +496,10 @@ terraform -chdir=terraform/registry output -json tsuru_registry \
 # 2. Instala API, router e deploy-agent
 terraform -chdir=terraform/cluster plan -out=tfplan && terraform -chdir=terraform/cluster apply tfplan
 
-# 3. Root de break-glass (native), papéis por grupo e o pull dos apps
-kubectl -n tsuru-system exec -it deploy/tsuru-api -- tsurud root user create admin@devcomm.com.br
+# 3. Primeiro admin: login pelo Pocket ID cria o usuário (sem papel); o tsurud dá AllowAll a ele
 tsuru target add devcomm https://tsuru.int.devcomm.com.br -s
-tsuru login --scheme native admin@devcomm.com.br          # só no bootstrap
+tsuru login                                               # abre o Pocket ID; falha se o token não tiver email
+kubectl -n tsuru-system exec deploy/tsuru-api -- tsurud root user create <seu email no Pocket ID>
 tsuru role assign AllowAll --group k8s-admins             # API: POST /roles/{name}/group
 tsuru team create devs && tsuru role add deployer team && tsuru role permission add deployer app
 tsuru role assign deployer --group tsuru-devs devs
@@ -508,8 +508,8 @@ AUTH=$(terraform -chdir=terraform/registry output -json tsuru_registry | jq -r '
 tsuru cluster update local --provisioner kubernetes \
   --custom docker-config-json="{\"auths\":{\"harbor.devcomm.com.br\":{\"auth\":\"$AUTH\"}}}"
 
-# 4. Login do dia a dia: abre o Pocket ID no navegador (callback em localhost:38080)
-tsuru login
+# 4. Login do dia a dia: o mesmo tsuru login (callback em localhost:38080). Não há login por senha:
+#    com o Pocket ID fora do ar ninguém entra no Tsuru (ADR 0035); os apps seguem no ar.
 ```
 
 Confira a sintaxe exata de `tsuru role` com `tsuru role --help`: os subcomandos mudam entre versões do CLI.
