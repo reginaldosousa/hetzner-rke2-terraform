@@ -16,3 +16,9 @@ variable "users" {
   }))
   default = {}
 }
+
+variable "harbor_hostname" {
+  description = "Harbor's hostname, terraform/cluster's harbor_hostname (docs/adr/0033); used for its OIDC callback."
+  type        = string
+  default     = "harbor.devcomm.com.br"
+}

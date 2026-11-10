@@ -70,6 +70,22 @@ resource "pocketid_client" "grafana" {
   }
 }
 
+# Harbor (docs/adr/0033): confidential client with PKCE. k8s-admins become
+# Harbor admins (terraform/registry); anyone else in the group can sign in
+# and is onboarded as a regular user. ID and secret go to terraform/registry.
+resource "pocketid_client" "harbor" {
+  name                = "harbor"
+  is_public           = false
+  pkce_enabled        = true
+  callback_urls       = ["https://${var.harbor_hostname}/c/oidc/callback"]
+  allowed_user_groups = [pocketid_group.k8s_admins.id]
+
+  lifecycle {
+    # A new client means a new secret: Harbor logins fail until registry is reapplied.
+    prevent_destroy = true
+  }
+}
+
 resource "pocketid_user" "this" {
   for_each = var.users
 
