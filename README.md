@@ -127,7 +127,9 @@ ADRs 0023–0026):
 ```bash
 # 5. Pocket ID: keep pocket_id_allowed_cidrs = ["<your IP>/32"] until you create the
 #    admin at https://<oidc_issuer_url>/setup, then set it to [] and apply cluster again.
-# 6. terraform/identity: Pocket ID API key + users in its tfvars, then apply.
+# 6. terraform/identity: Pocket ID API key + users in its tfvars, then apply. Its provider
+#    comes from the official releases, so run this before its first `terraform init`:
+#      eval "$(scripts/pocketid-provider-mirror.sh)"   # sets TF_CLI_CONFIG_FILE
 #    It creates the k8s-admins/vpn groups and the kubectl, headscale and grafana OIDC clients.
 # 7. terraform/infra: set oidc_client_id and headscale_* from
 #    `terraform -chdir=terraform/identity output`, apply, then scripts/sync-masters.sh.

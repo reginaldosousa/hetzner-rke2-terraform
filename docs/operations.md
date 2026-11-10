@@ -105,6 +105,8 @@ Primeira vez ([ADR 0023](adr/0023-oidc-pocket-id.md)):
 3. No Pocket ID, crie uma API key (*Settings → Admin → API Keys*, com validade) e coloque em
    `terraform/identity/terraform.tfvars` (`pocket_id_api_token`), com os usuários em `users`. O `apply` do
    `identity` cria o grupo `k8s-admins`, o client `kubectl` e as associações ([ADR 0024](adr/0024-identity-root-pocketid-provider.md)).
+   Num clone novo, rode `eval "$(scripts/pocketid-provider-mirror.sh)"` antes do primeiro `terraform init` do
+   `identity`: o provider vem das releases oficiais, porque os links de download do registry estão quebrados.
 4. Coloque `terraform -chdir=terraform/identity output -raw kubectl_client_id` em `oidc_client_id`, rode `apply`
    do `infra` e `scripts/sync-masters.sh`.
 5. No laptop (`brew install kubelogin` ou `kubectl krew install oidc-login`):

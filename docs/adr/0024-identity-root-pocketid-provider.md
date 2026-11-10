@@ -34,3 +34,14 @@ primeiro admin é criado no `/setup`.
   `infra` e `sync-masters.sh`.
 - Quando a API key expira, o `identity` para de aplicar até que uma nova seja posta no tfvars.
 - Passkeys continuam fora do Terraform: cada usuário cadastra a própria, por um link de acesso único.
+
+## Atualizações
+- **2026-11-10:** O projeto do provider passou para a organização do Pocket ID
+  ([github.com/pocket-id/terraform-provider](https://github.com/pocket-id/terraform-provider)), e o repositório
+  original do Trozz ficou sem releases. O registry ainda publica o provider como `trozz/pocketid`, mas aponta os
+  downloads para o repositório antigo, e `terraform init` falha com 404. Os binários da release oficial são os
+  mesmos: os hashes do `.terraform.lock.hcl` batem com o `SHA256SUMS` da v2.4.2. O endereço `trozz/pocketid` e o
+  lock file continuam, e `scripts/pocketid-provider-mirror.sh` baixa o zip da release oficial para um filesystem
+  mirror (`TF_CLI_CONFIG_FILE`). O Terraform recusa um zip que não bata com o lock file (testado com um binário
+  alterado). O CI usa o mesmo script. Quando o registry voltar a apontar para o repositório oficial, o script
+  pode sair.
