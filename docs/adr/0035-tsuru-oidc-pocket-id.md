@@ -36,7 +36,7 @@ O esquema `oidc` do Tsuru verifica a assinatura e a validade do token, mas não 
 - **Sem checagem de audiência**, a API aceita qualquer token assinado pelo Pocket ID que tenha email, inclusive um
   emitido para outro client (Grafana, kubectl). O efeito é limitado: um usuário só obtém tokens dele mesmo, e sem um
   papel no Tsuru o usuário criado não pode nada. Quando confirmarmos que o token que o CLI envia traz `aud` (ou
-  `azp`) como string, entra em `valid-claims` (`tsuru_oidc_audience_claim`).
+  `azp`) como string, entra em `valid-claims` pela variável `tsuru_oidc_valid_claims`.
 - Desativar alguém é no Pocket ID (`disabled = true` no root `identity`). Tokens já emitidos valem até expirar.
 - Se o Pocket ID cair, só o root `native` entra no Tsuru.
 - O teste do primeiro `tsuru login` precisa confirmar duas coisas: que o CLI manda PKCE (o client público do Pocket

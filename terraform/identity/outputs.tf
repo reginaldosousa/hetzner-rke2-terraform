@@ -31,3 +31,11 @@ output "harbor_oidc" {
   }
   sensitive = true
 }
+
+output "tsuru_oidc" {
+  description = "Set as tsuru_oidc in terraform/cluster (tsuru-oidc.auto.tfvars.json, see docs/operations.md)."
+  value = {
+    client_id     = pocketid_client.tsuru.id
+    callback_port = 38080
+  }
+}
