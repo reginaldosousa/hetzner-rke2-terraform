@@ -31,6 +31,9 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Token do bot do Telegram / URL do dead man's switch | state do `cluster` → Secret `monitoring/alertmanager-receivers` | Alertmanager |
 | Credenciais R2 (Velero) | token criado pelo `cluster` → Secret `velero/velero-r2` | Velero; escopo só no bucket `rke2-velero` |
 | Credenciais R2 (Loki e Tempo) | tokens criados pelo `cluster` → Secrets `monitoring/loki-r2` e `monitoring/tempo-r2` | Loki e Tempo, por variável de ambiente; escopo só no bucket de cada um |
+| Credenciais R2 (MongoDB) | token criado pelo `cluster` → Secret `mongodb/mongodb-backup-r2` | pbm-agent; escopo só no bucket `rke2-mongodb` |
+| Usuários de sistema do MongoDB | gerados pelo operator → Secret `mongodb/mongodb-secrets` (nunca no state) | operator, exporter (usuário de monitoramento), admin break-glass |
+| Senha do usuário `tsuru` no MongoDB | state do `cluster` (`random_password`) → Secret `mongodb/mongodb-app-users`, output `mongodb_tsuru_uri` | Tsuru API |
 | Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
 | API key do Pocket ID | `terraform/identity/terraform.tfvars` | operador; admin total das identidades, com validade, **nunca** vai para o cluster |
 | Secret do client OIDC do Headscale | state do `identity` → `terraform.tfvars` do `infra` → `/etc/headscale/oidc_client_secret` no gateway | Headscale; o `sync-gateway.sh` nunca mostra o conteúdo |
@@ -111,8 +114,8 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   Cloudflare. Nada disso dá acesso: segredos só existem no state, nos `tfvars` e no cluster, todos fora do git.
   Um `tfvars` ou `kubeconfig` commitado por engano seria público na hora, por isso o `.gitignore` e a push
   protection importam.
-- **Snapshots e backups têm todo o conteúdo do cluster**: os buckets `rke2-etcd-snapshots` e `rke2-velero` devem
-  ser tratados como sensíveis. O `rke2-loki` também: tem tudo o que os pods imprimem, inclusive um segredo que
+- **Snapshots e backups têm todo o conteúdo do cluster**: os buckets `rke2-etcd-snapshots`, `rke2-velero` e
+  `rke2-mongodb` devem ser tratados como sensíveis. O `rke2-loki` também: tem tudo o que os pods imprimem, inclusive um segredo que
   um app logue por engano. No Grafana, quem é Viewer (grupo `vpn`) lê esses logs. Os Secrets estão cifrados no etcd (`secrets-encryption` do RKE2), mas o resto não.
 - **Masters `cax11` (4 GB)**: usavam de 37% a 49% da memória sem carga, antes do node-exporter e dos agentes. O
   upgrade para `cax21` foi adiado, e os alertas de memória do kube-prometheus-stack avisam se apertar.

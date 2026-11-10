@@ -265,6 +265,44 @@ velero backup create manual-$(date +%s) --from-schedule velero-daily
 velero restore create --from-backup <backup> --include-namespaces <ns>
 ```
 
+## MongoDB
+
+Replica set `rs0` no namespace `mongodb`, backups do PBM no R2 `rke2-mongodb/<cluster_name>/`: lógico diário
+(00:00 em São Paulo, 7 cópias) e oplog a cada 10 min para PITR ([ADR 0030](adr/0030-mongodb-percona-operator.md)).
+
+```bash
+kubectl -n mongodb get psmdb,psmdb-backup,psmdb-restore
+# Shell como root do banco (usuários de sistema no Secret mongodb-secrets)
+kubectl -n mongodb exec -it mongodb-rs0-0 -c mongod -- mongosh -u databaseAdmin \
+  -p "$(kubectl -n mongodb get secret mongodb-secrets -o jsonpath='{.data.MONGODB_DATABASE_ADMIN_PASSWORD}' | base64 -d)" \
+  --eval 'rs.status().members.map(m => [m.name, m.stateStr])'
+# Status do PBM (último backup, janela de PITR)
+kubectl -n mongodb exec mongodb-rs0-0 -c backup-agent -- pbm status
+# URI do usuário tsuru
+terraform -chdir=terraform/cluster output -raw mongodb_tsuru_uri
+```
+
+Backup manual e restore (o restore para a escrita no replica set enquanto roda):
+
+```bash
+cat <<YAML | kubectl apply -f -
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDBBackup
+metadata: {name: manual-$(date +%s), namespace: mongodb}
+spec: {clusterName: mongodb, storageName: r2}
+YAML
+# Restore de um backup (backupName) ou de um ponto no tempo (pitr):
+cat <<YAML | kubectl apply -f -
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDBRestore
+metadata: {name: restore-$(date +%s), namespace: mongodb}
+spec:
+  clusterName: mongodb
+  backupName: <nome de um psmdb-backup>
+  # pitr: {type: date, date: "2026-11-10 13:00:00"}
+YAML
+```
+
 ## Monitoramento
 
 Alertas vão para o Telegram (`telegram_chat_id`), e o `Watchdog` para o dead man's switch

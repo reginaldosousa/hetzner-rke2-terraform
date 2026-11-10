@@ -6,7 +6,7 @@
 flowchart TB
     internet((Internet))
     subgraph external["Serviços externos"]
-        r2[("Cloudflare R2<br/>state, snapshots do etcd, Velero, Headscale")]
+        r2[("Cloudflare R2<br/>state, snapshots do etcd, Velero, Headscale, MongoDB")]
         tg["Telegram<br/>alertas"]
         hc["healthchecks.io<br/>dead man's switch"]
         cf["Cloudflare DNS"]
@@ -17,7 +17,7 @@ flowchart TB
         gw["gateway 10.0.1.2<br/>IP primário fixo<br/>Headscale · Tailscale · WireGuard · NAT · HAProxy · nftables"]
         lb["Hetzner LB lb11 (rke2-ingress)<br/>criado pelo CCM, fora do Terraform"]
         masters["master-1..3 · 10.0.1.11-13<br/>rke2-server + etcd<br/>CCM · CSI · Karpenter"]
-        workers["workers Karpenter (mín. 2: nbg1 e fsn1)<br/>rke2-agent · Traefik · apps<br/>Prometheus · Velero"]
+        workers["workers Karpenter (mín. 2: nbg1 e fsn1)<br/>rke2-agent · Traefik · apps<br/>Prometheus · Velero · MongoDB"]
     end
     gw -- "HAProxy :6443 / :9345" --> masters
     lb -- "PROXY protocol, IP privado" --> workers
