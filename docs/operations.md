@@ -351,12 +351,17 @@ cache, fila e sessões. Teste rápido do operator num namespace descartável:
 kubectl create ns redis-smoke
 helm install smoke redis-replication --repo https://ot-container-kit.github.io/helm-charts \
   -n redis-smoke --set redisReplication.clusterSize=2 --set sentinel.enabled=true \
-  --set redisReplication.tag=v7.2.16 --set sentinel.tag=v7.2.16
+  --set redisReplication.tag=v7.2.16 --set sentinel.tag=v7.2.16 --set storageSpec=null   # sem volume de 10 GB
 kubectl -n redis-smoke get redisreplication,pods           # 2 redis + 3 sentinel Ready
 kubectl -n redis-smoke exec smoke-0 -- redis-cli ping      # PONG
 kubectl -n redis-smoke delete pod smoke-0                  # Sentinel promove a réplica
-kubectl delete ns redis-smoke
+kubectl -n redis-smoke get pods -L redis-role              # o operator move o label redis-role=master
+helm uninstall smoke -n redis-smoke && kubectl delete ns redis-smoke
 ```
+
+No failover, o Sentinel promove a réplica em segundos, mas o Service `<nome>-master` só volta quando o operator
+troca o label `redis-role` (medido em 2026-11-10: ~35-40 s sem endpoints). Clientes que falam com o Sentinel
+direto (`<nome>-s-hl:26379`, master `mymaster`) se recuperam mais rápido.
 
 ## Harbor
 

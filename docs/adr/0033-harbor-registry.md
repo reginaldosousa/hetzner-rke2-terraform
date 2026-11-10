@@ -68,3 +68,7 @@ ainda estava no 1.19.4 (Harbor 2.15.4, só amd64).
 - O token interno que o core assina é recriado a cada upgrade do chart (o chart gera um certificado novo). Isso
   derruba sessões de `docker login` no meio do upgrade, sem perder dado.
 - O bucket `rke2-harbor` tem todas as imagens e é tão sensível quanto o código delas.
+- Quando a primária do Redis cai, o Sentinel promove a réplica em segundos, mas o Service `harbor-redis-master`
+  fica sem endpoints até o operator trocar o label (~35-40 s, medido no teste do operator em 2026-11-10). Nesse
+  intervalo, login e jobs do Harbor falham e pulls de imagens já em cache seguem. Se isso incomodar, a troca é
+  apontar o Harbor para o Sentinel (`harbor-redis-s-hl:26379`, `sentinelMasterSet: mymaster`).
