@@ -339,6 +339,22 @@ spec:
         parameters: {barmanObjectName: <banco>, serverName: <banco>}
 ```
 
+## Redis
+
+Instâncias do operator da OT-Container-Kit ([ADR 0032](adr/0032-redis-operator.md)), sem persistência: são
+cache, fila e sessões. Teste rápido do operator num namespace descartável:
+
+```bash
+kubectl create ns redis-smoke
+helm install smoke redis-replication --repo https://ot-container-kit.github.io/helm-charts \
+  -n redis-smoke --set redisReplication.clusterSize=2 --set sentinel.enabled=true \
+  --set redisReplication.tag=v7.2.16 --set sentinel.tag=v7.2.16
+kubectl -n redis-smoke get redisreplication,pods           # 2 redis + 3 sentinel Ready
+kubectl -n redis-smoke exec smoke-0 -- redis-cli ping      # PONG
+kubectl -n redis-smoke delete pod smoke-0                  # Sentinel promove a réplica
+kubectl delete ns redis-smoke
+```
+
 ## Monitoramento
 
 Alertas vão para o Telegram (`telegram_chat_id`), e o `Watchdog` para o dead man's switch

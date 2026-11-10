@@ -233,6 +233,14 @@ alternativas descartadas.
   do app que o usa.
 - **ADR:** [0031](adr/0031-postgres-cloudnativepg.md)
 
+### Redis (OT-Container-Kit operator)
+- **Papel:** operator no namespace `redis-operator`, com escopo de cluster. Instâncias são CRs
+  (`RedisReplication` com Sentinel, ou `Redis` standalone) criados pelos charts da OT-Container-Kit no namespace
+  de quem as usa. O primeiro é o Harbor; depois, os serviços do Tsuru.
+- **Por quê:** um jeito só de rodar Redis, com failover pelo Sentinel e imagens multi-arch. O operator oficial do
+  Valkey ainda é alpha. As imagens ficam no Redis 7.2, a última versão sob licença BSD.
+- **ADR:** [0032](adr/0032-redis-operator.md)
+
 ## Infraestrutura como código e operação
 
 ### Terraform (≥ 1.10, < 2.0), três roots

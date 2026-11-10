@@ -61,6 +61,7 @@ flowchart TB
 | Logs and traces (OpenTelemetry, Loki, Tempo) | `terraform/cluster/otel-collector.tf`, `otel-operator.tf`, `loki.tf`, `tempo.tf` |
 | MongoDB (Percona Operator, PBM to R2) | `terraform/cluster/mongodb.tf` |
 | PostgreSQL (CloudNativePG, Barman Cloud to R2) | `terraform/cluster/postgres.tf`, `charts/pg-cluster` |
+| Redis operator (OT-Container-Kit) | `terraform/cluster/redis-operator.tf` |
 
 Three Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
 Kubernetes and therefore runs **over the VPN**; `identity` manages Pocket ID
@@ -114,7 +115,7 @@ kubectl get nodes                               # 3 masters, NotReady/uninitiali
 
 # 4. In-cluster: hcloud secret (unblocks CCM/CSI), Karpenter, NodePool, R2 buckets
 #    and tokens, monitoring, logs and traces, Velero, kured, worker floor, MongoDB,
-#    CloudNativePG
+#    CloudNativePG, Redis operator
 cd ../cluster
 cp terraform.tfvars.example terraform.tfvars   # Cloudflare, Telegram, zones, ACME email
 terraform init && terraform apply
