@@ -292,3 +292,9 @@ variable "postgres_bucket" {
   type        = string
   default     = "rke2-postgres"
 }
+
+variable "redis_operator_chart_version" {
+  description = "OT-Container-Kit redis-operator chart version (ADR 0032)."
+  type        = string
+  default     = "0.27.0"
+}
