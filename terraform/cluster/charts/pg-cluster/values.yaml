@@ -1,0 +1,24 @@
+# Filled in by the release that uses this chart (see terraform/cluster/harbor.tf).
+# name: harbor-db            # Cluster name; Services <name>-rw/-ro, Secret <name>-app
+# database: registry
+# owner: harbor
+instances: 2
+imageName: ghcr.io/cloudnative-pg/postgresql:17.11-standard-trixie
+storageSize: 10Gi # Hetzner's minimum volume size
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+# Extra postgresql.conf parameters.
+parameters: {}
+backup:
+  # bucket: rke2-postgres
+  # prefix: <cluster_name>   # objects land in s3://<bucket>/<prefix>/<name>/
+  # endpointURL: https://<account>.r2.cloudflarestorage.com
+  # Secret in the release namespace with ACCESS_KEY_ID and ACCESS_SECRET_KEY.
+  # credentialsSecret: harbor-db-r2
+  retention: 14d
+  # CNPG cron: seconds first. 04:00 UTC = 01:00 in São Paulo, after the MongoDB backup.
+  schedule: "0 0 4 * * *"

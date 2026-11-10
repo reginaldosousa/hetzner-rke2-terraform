@@ -1,0 +1,15 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ include "pg-cluster.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  # Take one right away, so PITR works from the first day.
+  immediate: true
+  backupOwnerReference: self
+  cluster:
+    name: {{ include "pg-cluster.name" . }}
+  method: plugin
+  pluginConfiguration:
+    name: {{ include "pg-cluster.plugin" . }}
