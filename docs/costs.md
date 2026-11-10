@@ -47,6 +47,10 @@ Os 3 membros do MongoDB pedem 768 Mi cada e ficam em nós distintos (anti-afinid
 pelo menos 3 workers enquanto o MongoDB existir: um `cax11` a mais que o piso (+US$ 6,99), ou mais se o resto não
 couber ([ADR 0030](adr/0030-mongodb-percona-operator.md)).
 
+O Tsuru pede pouco parado (~0,5 Gi entre API, router e deploy-agent), mas o BuildKit usa até 2 Gi durante um
+build, e cada app adiciona seus próprios pods: o custo do PaaS é o dos workers que os apps fizerem o Karpenter
+subir ([ADR 0034](adr/0034-tsuru-paas.md)).
+
 O teto vem de `nodepool_cpu_limit = 32`. Aumentar esse limite aumenta o gasto máximo possível. A consolidação
 (`WhenEmptyOrUnderutilized`, 5 min) remove workers ociosos acima do piso, então o custo real fica perto do mínimo
 enquanto não há carga.

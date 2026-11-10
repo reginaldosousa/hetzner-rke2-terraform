@@ -479,6 +479,58 @@ spec:
   rules: [{host: app.int.devcomm.com.br, http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: app, port: {number: 80}}}}]}}]
 ```
 
+## Tsuru
+
+API em `https://tsuru.int.devcomm.com.br`, só pela VPN ([ADR 0034](adr/0034-tsuru-paas.md),
+[0035](adr/0035-tsuru-oidc-pocket-id.md)). O `cluster` só instala o Tsuru quando `tsuru_oidc` e `tsuru_registry`
+existem.
+
+```bash
+# 1. Pocket ID: client tsuru e grupo tsuru-devs; Harbor: robot tsuru
+terraform -chdir=terraform/identity apply
+terraform -chdir=terraform/registry apply
+terraform -chdir=terraform/identity output -json tsuru_oidc \
+  | jq '{tsuru_oidc: .}' > terraform/cluster/tsuru-oidc.auto.tfvars.json
+terraform -chdir=terraform/registry output -json tsuru_registry \
+  | jq '{tsuru_registry: .}' > terraform/cluster/tsuru-registry.auto.tfvars.json
+# 2. Instala API, router e deploy-agent
+terraform -chdir=terraform/cluster plan -out=tfplan && terraform -chdir=terraform/cluster apply tfplan
+
+# 3. Root de break-glass (native), papéis por grupo e o pull dos apps
+kubectl -n tsuru-system exec -it deploy/tsuru-api -- tsurud root user create admin@devcomm.com.br
+tsuru target add devcomm https://tsuru.int.devcomm.com.br -s
+tsuru login --scheme native admin@devcomm.com.br          # só no bootstrap
+tsuru role assign AllowAll --group k8s-admins             # API: POST /roles/{name}/group
+tsuru team create devs && tsuru role add deployer team && tsuru role permission add deployer app
+tsuru role assign deployer --group tsuru-devs devs
+# Credencial de pull dos apps (JSON; a config do Tsuru não aceita JSON, então vai nos dados do cluster)
+AUTH=$(terraform -chdir=terraform/registry output -json tsuru_registry | jq -r '"\(.username):\(.password)" | @base64')
+tsuru cluster update local --provisioner kubernetes \
+  --custom docker-config-json="{\"auths\":{\"harbor.devcomm.com.br\":{\"auth\":\"$AUTH\"}}}"
+
+# 4. Login do dia a dia: abre o Pocket ID no navegador (callback em localhost:38080)
+tsuru login
+```
+
+Confira a sintaxe exata de `tsuru role` com `tsuru role --help`: os subcomandos mudam entre versões do CLI.
+
+**Deploy e publicação.** Todo app nasce interno, em `https://<app>.apps.int.devcomm.com.br` (wildcard próprio no
+TLSStore). Para publicar, adicione um nome **fora** de `int.devcomm.com.br` e peça o certificado:
+
+```bash
+tsuru app create hello go --team devs
+tsuru app deploy -a hello .
+curl https://hello.apps.int.devcomm.com.br          # só pela VPN
+tsuru cname add hello.devcomm.com.br -a hello      # vai para o LB público; external-dns cria o DNS
+tsuru certificate set -a hello -c hello.devcomm.com.br -i letsencrypt-prod
+kubectl get ingress -A -l router.tsuru.io/is-cname-ingress=true \
+  -o custom-columns=HOST:.spec.rules[0].host,EP:.metadata.annotations.traefik\\.ingress\\.kubernetes\\.io/router\\.entrypoints
+tsuru cname remove hello.devcomm.com.br -a hello   # volta a ser só interno
+```
+
+Um cname dentro de `int.devcomm.com.br` continua interno (a mutação só vale para hosts todos fora da zona). Um
+domínio que não está em `external_dns_domains` precisa de um CNAME manual para o LB público.
+
 ## Troubleshooting rápido
 
 | Sintoma | Causa provável |
