@@ -274,3 +274,21 @@ variable "mongodb_bucket" {
   type        = string
   default     = "rke2-mongodb"
 }
+
+variable "cnpg_chart_version" {
+  description = "cloudnative-pg operator chart version (ADR 0031)."
+  type        = string
+  default     = "0.29.1"
+}
+
+variable "cnpg_barman_plugin_chart_version" {
+  description = "plugin-barman-cloud chart version; WAL archiving and base backups for CloudNativePG."
+  type        = string
+  default     = "0.9.0"
+}
+
+variable "postgres_bucket" {
+  description = "R2 bucket for CloudNativePG backups (one folder per database)."
+  type        = string
+  default     = "rke2-postgres"
+}
