@@ -41,7 +41,7 @@ flowchart TB
     gw -. "VPN clients: only :22, :6443<br/>and internal apps (:80/:443 on the private LB)" .-> workers
     masters -. "egress: route 0.0.0.0/0 → gateway NAT" .-> gw
     workers -. "egress" .-> gw
-    gw -. "R2 (etcd snapshots, Velero, Headscale DB, MongoDB backups), Telegram, healthchecks.io" .-> ext(("internet"))
+    gw -. "R2 (etcd snapshots, Velero, Headscale DB, MongoDB and Postgres backups), Telegram, healthchecks.io" .-> ext(("internet"))
 ```
 
 | Piece | Where |
@@ -60,6 +60,7 @@ flowchart TB
 | Monitoring, Velero | `terraform/cluster/monitoring.tf`, `velero.tf` |
 | Logs and traces (OpenTelemetry, Loki, Tempo) | `terraform/cluster/otel-collector.tf`, `otel-operator.tf`, `loki.tf`, `tempo.tf` |
 | MongoDB (Percona Operator, PBM to R2) | `terraform/cluster/mongodb.tf` |
+| PostgreSQL (CloudNativePG, Barman Cloud to R2) | `terraform/cluster/postgres.tf`, `charts/pg-cluster` |
 
 Three Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
 Kubernetes and therefore runs **over the VPN**; `identity` manages Pocket ID
@@ -112,7 +113,8 @@ export KUBECONFIG=$PWD/../../kubeconfig
 kubectl get nodes                               # 3 masters, NotReady/uninitialized is expected
 
 # 4. In-cluster: hcloud secret (unblocks CCM/CSI), Karpenter, NodePool, R2 buckets
-#    and tokens, monitoring, logs and traces, Velero, kured, worker floor, MongoDB
+#    and tokens, monitoring, logs and traces, Velero, kured, worker floor, MongoDB,
+#    CloudNativePG
 cd ../cluster
 cp terraform.tfvars.example terraform.tfvars   # Cloudflare, Telegram, zones, ACME email
 terraform init && terraform apply

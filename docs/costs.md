@@ -54,7 +54,7 @@ enquanto não há carga.
 
 | Serviço | Uso | Custo |
 |---|---|---|
-| Cloudflare R2 | state e backups dele, snapshots do etcd (28 por master), backups do Velero (7 dias), réplica do banco do Headscale, logs do Loki (30 dias), traces do Tempo (7 dias) e backups do MongoDB (7 dias + oplog) | US$ 0 dentro do free tier (10 GB, 1M operações classe A, 10M classe B, sem egress); acima de 10 GB, US$ 0,015/GB/mês. Logs e traces são o que mais cresce: acompanhe o uso no painel do R2 e reduza `loki_retention`/`tempo_retention` se passar do free tier |
+| Cloudflare R2 | state e backups dele, snapshots do etcd (28 por master), backups do Velero (7 dias), réplica do banco do Headscale, logs do Loki (30 dias), traces do Tempo (7 dias), backups do MongoDB (7 dias + oplog) e do Postgres (14 dias + WAL) | US$ 0 dentro do free tier (10 GB, 1M operações classe A, 10M classe B, sem egress); acima de 10 GB, US$ 0,015/GB/mês. Logs e traces são o que mais cresce: acompanhe o uso no painel do R2 e reduza `loki_retention`/`tempo_retention` se passar do free tier |
 | Telegram | alertas do Alertmanager | gratuito |
 | healthchecks.io | dead man's switch do Watchdog | US$ 0 no plano Hobbyist |
 | Cloudflare DNS | zonas gerenciadas pelo external-dns | US$ 0 no plano Free |
