@@ -19,6 +19,8 @@ $61/month fixed ([docs/costs.md](docs/costs.md)):
 
 The write-up of how it is built and what went wrong along the way:
 [English](https://reginaldosousa.com/production-ready-kubernetes-for-61-month-what-i-learned-building-a-cluster-on-hetzner-cb7deda67048) · [PT-BR](https://reginaldosousa.com/kubernetes-production-ready-por-us-61-m%C3%AAs-o-que-aprendi-montando-um-cluster-na-hetzner-cfbc99389ecc).
+Adding logs, traces and metrics with OpenTelemetry:
+[English](https://reginaldosousa.com/logs-traces-and-metrics-with-opentelemetry-on-a-63-month-kubernetes-cluster-b91ce9d5f823) · [PT-BR](https://reginaldosousa.com/logs-traces-e-m%C3%A9tricas-com-opentelemetry-num-kubernetes-de-us-63-m%C3%AAs-0160418a0b6f).
 
 The git history builds the project one piece at a time — `git log --reverse -p` reads like a walkthrough.
 
