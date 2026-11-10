@@ -215,6 +215,16 @@ alternativas descartadas.
   copiados por arquivo (kopia), porque os Volumes da Hetzner não têm snapshot.
 - **ADR:** [0022](adr/0022-velero-r2.md)
 
+## Bancos de dados
+
+### MongoDB (Percona Operator)
+- **Papel:** replica set `rs0` de 3 membros no namespace `mongodb`, um por nó e espalhados pelas locations. É o
+  banco do Tsuru. O Percona Backup for MongoDB faz backup lógico diário (7 cópias) e guarda o oplog contínuo
+  (PITR) no bucket `rke2-mongodb`. Usuários de aplicação são declarados no CR, com senha gerada pelo Terraform.
+- **Por quê:** o operator cuida de failover, upgrades em ordem e backups com restore a qualquer ponto no tempo,
+  o que um chart com StatefulSet não faz. Imagens multi-arch, licença Apache 2.0.
+- **ADR:** [0030](adr/0030-mongodb-percona-operator.md)
+
 ## Infraestrutura como código e operação
 
 ### Terraform (≥ 1.10, < 2.0), três roots
@@ -233,7 +243,7 @@ alternativas descartadas.
 - **ADR:** [0007](adr/0007-state-cloudflare-r2.md)
 
 ### Cloudflare (provider Terraform)
-- **Papel:** cria os buckets R2 (etcd, Velero, Headscale, Loki e Tempo) e os tokens de conta de escopo mínimo
+- **Papel:** cria os buckets R2 (etcd, Velero, Headscale, Loki, Tempo e MongoDB) e os tokens de conta de escopo mínimo
   usados no cluster (um por bucket e um de DNS).
 - **Por quê:** os tokens viram código revisável e rotacionável. O token do provider pode criar tokens, então fica
   só no `terraform.tfvars` do operador e nunca entra no cluster.

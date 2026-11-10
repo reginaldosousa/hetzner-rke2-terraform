@@ -36,3 +36,4 @@ Para criar um ADR, copie [`template.md`](template.md) para o próximo número li
 | [0027](0027-internal-apps-dns.md) | Aplicações internas pela VPN: zona `.internal`, DNS no gateway e LB só privado | Aceito (zona e TLS substituídos por 0028) |
 | [0028](0028-internal-apps-public-subdomain.md) | Aplicações internas num subdomínio público com wildcard do Let's Encrypt | Aceito |
 | [0029](0029-observability-opentelemetry.md) | Logs e traces com OpenTelemetry, Loki e Tempo | Aceito |
+| [0030](0030-mongodb-percona-operator.md) | MongoDB com o Percona Operator, backups com PITR no R2 | Aceito |
