@@ -238,3 +238,39 @@ variable "otel_trace_sample_ratio" {
     error_message = "otel_trace_sample_ratio must be between 0 and 1."
   }
 }
+
+variable "psmdb_operator_chart_version" {
+  description = "Percona psmdb-operator chart version (ADR 0030)."
+  type        = string
+  default     = "1.23.2"
+}
+
+variable "psmdb_db_chart_version" {
+  description = "Percona psmdb-db chart version; its crVersion must match the operator."
+  type        = string
+  default     = "1.23.4"
+}
+
+variable "psmdb_image_tag" {
+  description = "percona/percona-server-mongodb image tag (multi-arch)."
+  type        = string
+  default     = "8.0.32-14"
+}
+
+variable "pbm_image_tag" {
+  description = "percona/percona-backup-mongodb image tag supported by the operator version."
+  type        = string
+  default     = "2.15.0"
+}
+
+variable "mongodb_exporter_version" {
+  description = "percona/mongodb_exporter image tag for the metrics sidecar."
+  type        = string
+  default     = "0.47.1"
+}
+
+variable "mongodb_bucket" {
+  description = "R2 bucket for Percona Backup for MongoDB (base backups and oplog)."
+  type        = string
+  default     = "rke2-mongodb"
+}
