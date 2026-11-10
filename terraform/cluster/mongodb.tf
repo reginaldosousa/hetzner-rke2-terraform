@@ -84,6 +84,12 @@ resource "kubernetes_secret_v1" "mongodb_users" {
   data = {
     tsuru = random_password.mongodb_tsuru.result
   }
+
+  lifecycle {
+    # The operator annotates the Secret with each password's hash to notice
+    # changes; removing it on every apply would be a permanent diff.
+    ignore_changes = [metadata[0].annotations]
+  }
 }
 
 resource "helm_release" "mongodb" {
@@ -242,9 +248,9 @@ resource "kubernetes_manifest" "mongodb_rules" {
             annotations = { summary = "MongoDB member {{ $labels.pod }} is down." }
           },
           {
-            # rs_state 1 = PRIMARY. No member reporting it means no writes.
+            # myState 1 = PRIMARY. No member reporting it means no writes.
             alert       = "MongodbNoPrimary"
-            expr        = "absent(mongodb_mongod_replset_my_state{namespace=\"${local.mongodb_name}\"} == 1)"
+            expr        = "absent(mongodb_myState{namespace=\"${local.mongodb_name}\"} == 1)"
             for         = "2m"
             labels      = { severity = "critical" }
             annotations = { summary = "MongoDB replica set has no primary; writes are failing." }
