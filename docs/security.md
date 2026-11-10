@@ -8,6 +8,7 @@
 | Gateway `tcp/443`, `udp/3478`, `udp/41641` | Headscale (controle, DERP, ACME), STUN e caminho direto do Tailscale. Login só pelo Pocket ID, grupo `vpn` ([ADR 0025](adr/0025-headscale-oidc-vpn.md)) |
 | LB de ingress `80/443` | Traefik; só serve o que existe como Ingress. HTTP vira 308 para HTTPS. Hosts de `internal_domain` não podem estar nos entrypoints dele (política de admissão, [ADR 0027](adr/0027-internal-apps-dns.md)) |
 | Pocket ID (`auth.devcomm.com.br`) | Login só por passkey; IP do operador (`pocket_id_allowed_cidrs`) até o `/setup` criar o primeiro admin ([ADR 0023](adr/0023-oidc-pocket-id.md)) |
+| Harbor (`harbor.devcomm.com.br`) | Registro DNS público, mas aponta para o LB interno (IP privado): só a rede privada e a tailnet chegam. Login pelo Pocket ID; robots com escopo de projeto ([ADR 0033](adr/0033-harbor-registry.md)) |
 | Tudo o mais | Nada tem IP público. Da VPN só SSH, API do Kubernetes, o DNS interno do gateway e HTTP(S) do LB interno (só privado); etcd e kubelet só pela rede privada |
 
 Como a Hetzner não permite firewall em servidores só com rede privada, o isolamento dos masters e workers vem da
@@ -36,6 +37,11 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Senha do usuário `tsuru` no MongoDB | state do `cluster` (`random_password`) → Secret `mongodb/mongodb-app-users`, output `mongodb_tsuru_uri` | Tsuru API |
 | Credenciais R2 (Postgres) | token criado pelo `cluster` → um Secret `<banco>-r2` no namespace de cada banco | plugin Barman Cloud; escopo só no bucket `rke2-postgres` |
 | Senhas dos bancos Postgres | geradas pelo CloudNativePG → Secrets `<banco>-app` e `<banco>-superuser` (nunca no state) | o app do namespace; o superuser só para operação |
+| Credenciais R2 (Harbor) | token criado pelo `cluster` → Secret `harbor/harbor-r2` | registry do Harbor; escopo só no bucket `rke2-harbor` |
+| Senha admin, `secretKey` e credencial interna do registry do Harbor | state do `cluster` (`random_password`) → Secret `harbor/harbor-secrets`; senha admin no output `harbor_admin_password` | Harbor; admin é o break-glass e a credencial do root `registry`. Perder o `secretKey` torna ilegíveis as credenciais guardadas no banco |
+| Senha do Redis do Harbor | state do `cluster` (`random_password`) → Secret `harbor/harbor-redis` e **ConfigMaps do Harbor** (o chart a escreve nas URLs de conexão) | Redis (operator) e Harbor |
+| Secret do client OIDC do Harbor | state do `identity` → API do Harbor (atributo write-only do root `registry`, fora do state dele) | Harbor |
+| Senha do robot `tsuru` do Harbor | state do `registry` (`random_password`) → output `tsuru_registry` | Tsuru (push no build, pull nos pods dos apps) |
 | Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
 | API key do Pocket ID | `terraform/identity/terraform.tfvars` | operador; admin total das identidades, com validade, **nunca** vai para o cluster |
 | Secret do client OIDC do Headscale | state do `identity` → `terraform.tfvars` do `infra` → `/etc/headscale/oidc_client_secret` no gateway | Headscale; o `sync-gateway.sh` nunca mostra o conteúdo |
@@ -117,7 +123,7 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   Um `tfvars` ou `kubeconfig` commitado por engano seria público na hora, por isso o `.gitignore` e a push
   protection importam.
 - **Snapshots e backups têm todo o conteúdo do cluster**: os buckets `rke2-etcd-snapshots`, `rke2-velero`,
-  `rke2-mongodb` e `rke2-postgres` devem ser tratados como sensíveis. O `rke2-loki` também: tem tudo o que os pods imprimem, inclusive um segredo que
+  `rke2-mongodb`, `rke2-postgres` e `rke2-harbor` devem ser tratados como sensíveis. O `rke2-loki` também: tem tudo o que os pods imprimem, inclusive um segredo que
   um app logue por engano. No Grafana, quem é Viewer (grupo `vpn`) lê esses logs. Os Secrets estão cifrados no etcd (`secrets-encryption` do RKE2), mas o resto não.
 - **Masters `cax11` (4 GB)**: usavam de 37% a 49% da memória sem carga, antes do node-exporter e dos agentes. O
   upgrade para `cax21` foi adiado, e os alertas de memória do kube-prometheus-stack avisam se apertar.

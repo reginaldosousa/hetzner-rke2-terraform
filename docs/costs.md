@@ -18,7 +18,8 @@ Hetzner cobra por hora até o teto mensal, e os preços mudam: revise esta pági
 | Volume do Pocket ID (SQLite) | `pocket-id.tf` ([ADR 0023](adr/0023-oidc-pocket-id.md)) | 10 GB | US$ 0,0767/GB | US$ 0,77 |
 | Volumes do Loki e do Tempo (WAL; os dados ficam no R2) | `loki.tf`, `tempo.tf` ([ADR 0029](adr/0029-observability-opentelemetry.md)) | 20 GB | US$ 0,0767/GB | US$ 1,53 |
 | Volumes do MongoDB (3 membros) | `mongodb.tf` ([ADR 0030](adr/0030-mongodb-percona-operator.md)) | 30 GB | US$ 0,0767/GB | US$ 2,30 |
-| **Subtotal fixo** | | | | **US$ 65,22** |
+| Volumes do Harbor (cache do Trivy e as 2 instâncias do `harbor-db`) | `harbor.tf` ([ADR 0033](adr/0033-harbor-registry.md)) | 30 GB | US$ 0,0767/GB | US$ 2,30 |
+| **Subtotal fixo** | | | | **US$ 67,52** |
 
 Sem custo: rede privada, subnet, rotas, firewall, placement group, chave SSH e IPv6 primário.
 
@@ -28,7 +29,7 @@ Sem custo: rede privada, subnet, rotas, firewall, placement group, chave SSH e I
 |---|---|---|
 | Workers Karpenter `cax11` | US$ 6,99/mês (US$ 0,0112/h) | por worker, cobrado por hora enquanto existir |
 | `cax21` / `cax31` / `cax41` | US$ 12,49 / 24,99 / 48,49 | o Karpenter pode escolher conforme os pedidos dos pods |
-| Volumes CSI (`hcloud-volumes`) | US$ 0,0767/GB/mês | mínimo de 10 GB (≈ US$ 0,77); além dos 90 GB fixos (monitoramento, Loki, Tempo, Pocket ID e MongoDB), nenhum em uso hoje |
+| Volumes CSI (`hcloud-volumes`) | US$ 0,0767/GB/mês | mínimo de 10 GB (≈ US$ 0,77); além dos 120 GB fixos (monitoramento, Loki, Tempo, Pocket ID, MongoDB e Harbor), nenhum em uso hoje |
 | Tráfego | 20 TB inclusos por servidor e pelo LB; excedente US$ 1,20/TB | tráfego na rede privada não é cobrado |
 | Backups Hetzner | +20% do servidor | desligados |
 
@@ -54,7 +55,7 @@ enquanto não há carga.
 
 | Serviço | Uso | Custo |
 |---|---|---|
-| Cloudflare R2 | state e backups dele, snapshots do etcd (28 por master), backups do Velero (7 dias), réplica do banco do Headscale, logs do Loki (30 dias), traces do Tempo (7 dias), backups do MongoDB (7 dias + oplog) e do Postgres (14 dias + WAL) | US$ 0 dentro do free tier (10 GB, 1M operações classe A, 10M classe B, sem egress); acima de 10 GB, US$ 0,015/GB/mês. Logs e traces são o que mais cresce: acompanhe o uso no painel do R2 e reduza `loki_retention`/`tempo_retention` se passar do free tier |
+| Cloudflare R2 | state e backups dele, snapshots do etcd (28 por master), backups do Velero (7 dias), réplica do banco do Headscale, logs do Loki (30 dias), traces do Tempo (7 dias), backups do MongoDB (7 dias + oplog) e do Postgres (14 dias + WAL), imagens do Harbor (retenção de 10 por repositório) | US$ 0 dentro do free tier (10 GB, 1M operações classe A, 10M classe B, sem egress); acima de 10 GB, US$ 0,015/GB/mês. Logs e traces são o que mais cresce: acompanhe o uso no painel do R2 e reduza `loki_retention`/`tempo_retention` se passar do free tier |
 | Telegram | alertas do Alertmanager | gratuito |
 | healthchecks.io | dead man's switch do Watchdog | US$ 0 no plano Hobbyist |
 | Cloudflare DNS | zonas gerenciadas pelo external-dns | US$ 0 no plano Free |

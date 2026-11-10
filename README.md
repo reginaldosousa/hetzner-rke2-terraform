@@ -41,7 +41,7 @@ flowchart TB
     gw -. "VPN clients: only :22, :6443<br/>and internal apps (:80/:443 on the private LB)" .-> workers
     masters -. "egress: route 0.0.0.0/0 → gateway NAT" .-> gw
     workers -. "egress" .-> gw
-    gw -. "R2 (etcd snapshots, Velero, Headscale DB, MongoDB and Postgres backups), Telegram, healthchecks.io" .-> ext(("internet"))
+    gw -. "R2 (etcd snapshots, Velero, Headscale DB, MongoDB and Postgres backups, Harbor images), Telegram, healthchecks.io" .-> ext(("internet"))
 ```
 
 | Piece | Where |
@@ -62,10 +62,12 @@ flowchart TB
 | MongoDB (Percona Operator, PBM to R2) | `terraform/cluster/mongodb.tf` |
 | PostgreSQL (CloudNativePG, Barman Cloud to R2) | `terraform/cluster/postgres.tf`, `charts/pg-cluster` |
 | Redis operator (OT-Container-Kit) | `terraform/cluster/redis-operator.tf` |
+| Harbor registry (+ its CNPG database and Redis) | `terraform/cluster/harbor.tf`; configuration in `terraform/registry/` |
 
-Three Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
+Four Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
 Kubernetes and therefore runs **over the VPN**; `identity` manages Pocket ID
-(groups, OIDC clients, users) through its public API.
+(groups, OIDC clients, users) through its public API; `registry` configures
+Harbor (OIDC, projects, robots) through its API, also over the VPN.
 
 ## Prerequisites
 
@@ -144,6 +146,8 @@ ADRs 0023–0026):
 # 9. Grafana login through Pocket ID: grafana_oidc from identity, then apply cluster:
 #    terraform -chdir=terraform/identity output -json grafana_oidc \
 #      | jq '{grafana_oidc: .}' > terraform/cluster/grafana-oidc.auto.tfvars.json
+# 10. Harbor: apply identity (harbor client), then terraform/registry over the VPN:
+#     terraform -chdir=terraform/registry init && terraform -chdir=terraform/registry apply
 ```
 
 ## Verify
@@ -288,9 +292,9 @@ kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record
 ## CI
 
 `.github/workflows/terraform.yml` runs on every PR and on pushes to `main`. It
-checks fmt and validate for all three roots (with the committed lock files, read-only),
-then runs tflint, trivy (HIGH/CRITICAL), `helm lint --strict` on the NodePool
-chart, and shellcheck. Tool versions are pinned in the workflow's `env:`, and
+checks fmt and validate for all four roots (with the committed lock files, read-only),
+then runs tflint, trivy (HIGH/CRITICAL), `helm lint --strict` on the local
+charts, and shellcheck. Tool versions are pinned in the workflow's `env:`, and
 actions are pinned to commit SHAs. CI never plans or applies against real
 infrastructure: applies run locally over the VPN from a reviewed plan.
 

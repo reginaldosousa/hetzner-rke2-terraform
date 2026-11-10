@@ -241,14 +241,27 @@ alternativas descartadas.
   Valkey ainda é alpha. As imagens ficam no Redis 7.2, a última versão sob licença BSD.
 - **ADR:** [0032](adr/0032-redis-operator.md)
 
+## Registry
+
+### Harbor
+- **Papel:** registry de imagens em `harbor.devcomm.com.br`, um nome público que aponta para o LB interno (só VPN e
+  rede privada). Login pelo Pocket ID (`k8s-admins` são admins), projeto `tsuru` com retenção e robot do Tsuru,
+  scan com Trivy. Imagens no R2 (`rke2-harbor`), banco no CloudNativePG (`harbor-db`), Redis do operator
+  (`harbor-redis`, com Sentinel). A configuração é do root `terraform/registry`.
+- **Por quê:** projetos, robots, OIDC, retenção e scan num registry só, com imagens arm64 a partir da 2.16. O
+  nome público com IP privado deixa os nós baixarem imagens sem enxergar a zona interna.
+- **ADR:** [0033](adr/0033-harbor-registry.md)
+
 ## Infraestrutura como código e operação
 
-### Terraform (≥ 1.10, < 2.0), três roots
+### Terraform (≥ 1.10, < 2.0), quatro roots
 - **Papel:** todo o provisionamento. O root `infra` fala com a API da Hetzner, o `cluster` fala com o
-  Kubernetes e o `identity` com a API do Pocket ID ([ADR 0024](adr/0024-identity-root-pocketid-provider.md)).
+  Kubernetes, o `identity` com a API do Pocket ID ([ADR 0024](adr/0024-identity-root-pocketid-provider.md)) e o
+  `registry` com a API do Harbor ([ADR 0033](adr/0033-harbor-registry.md)).
 - **Por quê:** é a ferramenta com providers maduros para tudo aqui (hcloud, cloudflare, helm, kubernetes, tls,
   random, wireguard, pocketid). A divisão existe porque `cluster` só funciona com a VPN e o cluster no ar, e
-  `identity` só depois que o Pocket ID tem um admin e uma API key. A versão
+  `identity` só depois que o Pocket ID tem um admin e uma API key. O `registry` precisa do Harbor no ar, da senha de
+  admin dele e da VPN. A versão
   1.10 é necessária para `use_lockfile` no backend S3, e a 1.9 para validações entre variáveis.
 - **ADR:** [0006](adr/0006-two-terraform-roots.md), [0024](adr/0024-identity-root-pocketid-provider.md)
 
@@ -259,7 +272,7 @@ alternativas descartadas.
 - **ADR:** [0007](adr/0007-state-cloudflare-r2.md)
 
 ### Cloudflare (provider Terraform)
-- **Papel:** cria os buckets R2 (etcd, Velero, Headscale, Loki, Tempo, MongoDB e Postgres) e os tokens de conta de escopo mínimo
+- **Papel:** cria os buckets R2 (etcd, Velero, Headscale, Loki, Tempo, MongoDB, Postgres e Harbor) e os tokens de conta de escopo mínimo
   usados no cluster (um por bucket e um de DNS).
 - **Por quê:** os tokens viram código revisável e rotacionável. O token do provider pode criar tokens, então fica
   só no `terraform.tfvars` do operador e nunca entra no cluster.
