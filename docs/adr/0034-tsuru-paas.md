@@ -32,7 +32,7 @@ label `router.tsuru.io/is-cname-ingress=true`. As anotações de `-k8s-annotatio
   cria. Um wildcard `*.apps.int.devcomm.com.br` entra no TLSStore padrão do Traefik (`charts/internal-tls`). A
   política de admissão que já existe garante que nenhum host da zona interna chegue aos entrypoints públicos.
 - **Publicação por cname:** uma **MutatingAdmissionPolicy** (`tsuru-cname-public`, em `internal-apps.tf`) troca
-  `router.entrypoints` para `web,websecure` nos Ingresses de cname cujos hosts estão **todos fora** da zona interna.
+  `router.entrypoints` para `websecure` (o `web` já redireciona tudo para HTTPS) nos Ingresses de cname cujos hosts estão **todos fora** da zona interna.
   O external-dns publica o host se a zona for uma das `external_dns_domains`; para outros domínios, o dono aponta
   um CNAME para o LB público. O certificado é pedido com `tsuru certificate set -a <app> -c <host> -i
   letsencrypt-prod`, que faz o router criar um Certificate do cert-manager.

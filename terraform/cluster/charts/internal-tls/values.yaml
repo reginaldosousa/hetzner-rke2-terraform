@@ -1,2 +1,4 @@
 # internalDomain: int.example.com
 issuer: letsencrypt-prod
+# Subdomains of internalDomain that get their own wildcard, e.g. [apps].
+extraWildcards: []
