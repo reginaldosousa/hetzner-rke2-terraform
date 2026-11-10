@@ -16,6 +16,7 @@ wg/
 *.conf
 
 # Local tooling
+.terraform-mirror/
 .remember/
 .DS_Store
 

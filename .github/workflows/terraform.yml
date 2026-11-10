@@ -36,6 +36,13 @@ jobs:
       - name: terraform fmt
         run: terraform fmt -check -recursive -diff terraform
 
+      # trozz/pocketid comes from its official releases, not the Registry's broken
+      # download links (scripts/pocketid-provider-mirror.sh, docs/adr/0024).
+      - name: pocketid provider mirror
+        run: |
+          scripts/pocketid-provider-mirror.sh "$RUNNER_TEMP/tf-mirror" linux_amd64
+          echo "TF_CLI_CONFIG_FILE=$RUNNER_TEMP/tf-mirror/terraform.rc" >> "$GITHUB_ENV"
+
       - name: terraform validate
         run: |
           for root in terraform/infra terraform/cluster terraform/identity; do
