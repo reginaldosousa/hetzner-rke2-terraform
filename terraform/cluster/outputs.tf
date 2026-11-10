@@ -13,7 +13,7 @@ output "headscale_backup" {
 output "mongodb_tsuru_uri" {
   description = "Connection URI of Tsuru's MongoDB user (ADR 0030), read by the Tsuru API."
   sensitive   = true
-  value       = "mongodb://tsuru:${random_password.mongodb_tsuru.result}@${local.mongodb_rs_host}/tsuru?replicaSet=${local.mongodb_replset}&authSource=admin"
+  value       = local.mongodb_tsuru_uri
 }
 
 output "harbor_url" {
