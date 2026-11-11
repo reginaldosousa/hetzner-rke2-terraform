@@ -42,7 +42,7 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Senha do Redis do Harbor | state do `cluster` (`random_password`) → Secret `harbor/harbor-redis` e **ConfigMaps do Harbor** (o chart a escreve nas URLs de conexão) | Redis (operator) e Harbor |
 | Secret do client OIDC do Harbor | state do `identity` → API do Harbor (atributo write-only do root `registry`, fora do state dele) | Harbor |
 | Senha do robot `tsuru` do Harbor | state do `registry` (`random_password`) → output `tsuru_registry` | Tsuru (push no build, pull nos pods dos apps) |
-| Senha do router do Tsuru | state do `cluster` (`random_password`) → Secrets `tsuru-system/tsuru-api-env` e `kubernetes-router` | API do Tsuru (variável de ambiente, nunca no ConfigMap) |
+| Senha do router do Tsuru | state do `cluster` (`random_password`) → Secrets `tsuru-system/tsuru-api-env` (header `Authorization` pronto) e `kubernetes-router` | API do Tsuru, por variável de ambiente; nunca no ConfigMap nem na URL do router, que aparece nas mensagens de erro da API |
 | Credencial de push do Harbor para o Tsuru | state do `registry` → `tsuru-registry.auto.tfvars.json` do `cluster` → Secret do deploy-agent em `tsuru-build`; a de pull vai para os dados do cluster no MongoDB (`docker-config-json`) | BuildKit (push), pods dos apps (pull) |
 | Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
 | API key do Pocket ID | `terraform/identity/terraform.tfvars` | operador; admin total das identidades, com validade, **nunca** vai para o cluster |

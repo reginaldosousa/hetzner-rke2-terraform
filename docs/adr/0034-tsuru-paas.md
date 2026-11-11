@@ -34,8 +34,12 @@ label `router.tsuru.io/is-cname-ingress=true`. As anotações de `-k8s-annotatio
 - **Publicação por cname:** uma **MutatingAdmissionPolicy** (`tsuru-cname-public`, em `internal-apps.tf`) troca
   `router.entrypoints` para `websecure` (o `web` já redireciona tudo para HTTPS) nos Ingresses de cname cujos hosts estão **todos fora** da zona interna.
   O external-dns publica o host se a zona for uma das `external_dns_domains`; para outros domínios, o dono aponta
-  um CNAME para o LB público. O certificado é pedido com `tsuru certificate set -a <app> -c <host> -i
-  letsencrypt-prod`, que faz o router criar um Certificate do cert-manager.
+  um CNAME para o LB público. O certificado é pedido com `tsuru certificate issuer set -a <app> -c <host>
+  letsencrypt-prod`, que faz o router criar um Certificate do cert-manager. O router recebe para isso uma Role no
+  namespace dos apps (`default`: Secrets e Certificates/Issuers do cert-manager) e leitura de ClusterIssuers; o RBAC
+  do chart não tem nenhum dos dois.
+- **A API fala com o router com um header `Authorization`** montado do Secret `tsuru-api-env`
+  (`$ROUTER_AUTHORIZATION`), nunca com a senha na URL: o Tsuru mostra a URL do router nas mensagens de erro da API.
 - **Build com BuildKit no deploy-agent**, num namespace próprio, `tsuru-build`, com Pod Security `privileged` (o
   BuildKit precisa disso). É a terceira exceção ao baseline, depois de `monitoring` e `velero`. Imagens vão para o
   projeto `tsuru` do Harbor com o robot do root `registry`.

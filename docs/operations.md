@@ -527,18 +527,23 @@ Confira a sintaxe exata de `tsuru role` com `tsuru role --help`: os subcomandos 
 TLSStore). Para publicar, adicione um nome **fora** de `int.devcomm.com.br` e peça o certificado:
 
 ```bash
-tsuru app create hello go --team devs
-tsuru app deploy -a hello .
+tsuru app create hello --team devs                # sem plataforma: deploy por Dockerfile
+tsuru app deploy -a hello --dockerfile .           # BuildKit constrói e manda para harbor.devcomm.com.br/tsuru/app-hello
 curl https://hello.apps.int.devcomm.com.br          # só pela VPN
 tsuru cname add hello.devcomm.com.br -a hello      # vai para o LB público; external-dns cria o DNS
-tsuru certificate set -a hello -c hello.devcomm.com.br -i letsencrypt-prod
-kubectl get ingress -A -l router.tsuru.io/is-cname-ingress=true \
+tsuru certificate issuer set -a hello -c hello.devcomm.com.br letsencrypt-prod   # Let's Encrypt em ~2 min
+kubectl get ingress -n default -l router.tsuru.io/is-cname-ingress=true \
   -o custom-columns=HOST:.spec.rules[0].host,EP:.metadata.annotations.traefik\\.ingress\\.kubernetes\\.io/router\\.entrypoints
+tsuru certificate issuer unset -a hello -c hello.devcomm.com.br -y
 tsuru cname remove hello.devcomm.com.br -a hello   # volta a ser só interno
 ```
 
 Um cname dentro de `int.devcomm.com.br` continua interno (a mutação só vale para hosts todos fora da zona). Um
-domínio que não está em `external_dns_domains` precisa de um CNAME manual para o LB público.
+domínio que não está em `external_dns_domains` precisa de um CNAME manual para o LB público. Testado em
+2026-11-11: público com certificado válido, interno na zona, e o registro some com o `cname remove`.
+
+Trocar a senha do router: o chart cria o Secret do router só na instalação (hook), então a troca é
+`terraform apply -replace='random_password.tsuru_router[0]' -replace='helm_release.tsuru_router[0]'`.
 
 ## Troubleshooting rápido
 
