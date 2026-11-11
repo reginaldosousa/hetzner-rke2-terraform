@@ -501,10 +501,14 @@ terraform -chdir=terraform/registry output -json tsuru_registry \
 # 2. Instala API, router e deploy-agent
 terraform -chdir=terraform/cluster plan -out=tfplan && terraform -chdir=terraform/cluster apply tfplan
 
-# 3. Primeiro admin: login pelo Pocket ID cria o usuário (sem papel); o tsurud dá AllowAll a ele
+# 3. Primeiro admin: login pelo Pocket ID cria o usuário (sem papel); o tsurud dá AllowAll a ele.
+#    O CLI oficial não entra (state vazio; Pocket ID sem email no access token, ADR 0035): use o
+#    tsuru-client com patch (branch fix/oidc-state, `go build -o bin-local/tsuru ./tsuru`) e
+export TSURU_OIDC_BEARER=id_token                        # manda o ID token, que tem email e groups
 tsuru target add devcomm https://tsuru.int.devcomm.com.br -s
-tsuru login                                               # abre o Pocket ID; falha se o token não tiver email
-kubectl -n tsuru-system exec deploy/tsuru-api -- tsurud root user create <seu email no Pocket ID>
+tsuru login                                               # abre o Pocket ID
+tsuru user info                                           # e-mail e grupos vindos do Pocket ID
+kubectl -n tsuru-system exec deploy/tsuru-api -- tsurud root user create --config /etc/tsuru/tsuru.conf <seu email>
 tsuru role assign AllowAll --group k8s-admins             # API: POST /roles/{name}/group
 tsuru team create devs && tsuru role add deployer team && tsuru role permission add deployer app
 tsuru role assign deployer --group tsuru-devs devs
