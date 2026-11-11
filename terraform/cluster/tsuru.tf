@@ -198,6 +198,9 @@ resource "helm_release" "tsuru_api" {
         registry             = local.tsuru_registry_host
         repository-namespace = var.tsuru_registry.project
         router               = "ingress-router"
+        # Image GC refuses to start without it: removes app images Tsuru no
+        # longer uses (Harbor's retention covers the rest).
+        gc = { dry-run = false }
       }
       # Defaults for the "local" cluster Tsuru registers on first start. The
       # pull secret (docker-config-json) is JSON, which the config parser turns
