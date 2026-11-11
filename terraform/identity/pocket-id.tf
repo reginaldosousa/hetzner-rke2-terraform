@@ -97,10 +97,12 @@ resource "pocketid_client" "harbor" {
 # localhost port (Pocket ID matches callbacks exactly). Its ID goes to
 # cluster's tsuru_oidc.
 resource "pocketid_client" "tsuru" {
-  name                = "tsuru"
-  is_public           = true
-  pkce_enabled        = true
-  callback_urls       = ["http://localhost:38080/"]
+  name         = "tsuru"
+  is_public    = true
+  pkce_enabled = true
+  # The CLI redirects to http://localhost:<port> without a trailing slash;
+  # Pocket ID matches callbacks exactly, so both forms are listed.
+  callback_urls       = ["http://localhost:38080", "http://localhost:38080/"]
   allowed_user_groups = [pocketid_group.k8s_admins.id, pocketid_group.tsuru_devs.id]
 
   lifecycle {
