@@ -83,6 +83,10 @@ resource "kubernetes_manifest" "traefik_config" {
             expose        = { default = false, internal = true }
             proxyProtocol = { trustedIPs = [local.infra.network_cidr] }
             http          = { tls = { enabled = true } }
+            # Traefik's 60 s default cut multi-hundred-MB pushes to Harbor
+            # (ADR 0033) and would cut long `tsuru app deploy` uploads. Public
+            # entrypoints keep the default.
+            transport = { respondingTimeouts = { readTimeout = "30m" } }
           }
           internal-web = {
             port          = 8001

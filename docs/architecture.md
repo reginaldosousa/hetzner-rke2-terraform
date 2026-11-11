@@ -6,7 +6,7 @@
 flowchart TB
     internet((Internet))
     subgraph external["Serviços externos"]
-        r2[("Cloudflare R2<br/>state, snapshots do etcd, Velero, Headscale, MongoDB, Postgres")]
+        r2[("Cloudflare R2<br/>state, snapshots do etcd, Velero, Headscale, MongoDB, Postgres, Harbor")]
         tg["Telegram<br/>alertas"]
         hc["healthchecks.io<br/>dead man's switch"]
         cf["Cloudflare DNS"]
@@ -140,11 +140,13 @@ flowchart TB
         vel["Velero (depois do Prometheus, que traz os CRDs)"]
         otel["Loki + Tempo (R2) · OTel collectors · OTel operator → chart local otel-instrumentation"]
         pid["Pocket ID + RBAC OIDC + registro DNS do Headscale"]
-        hs ~~~ kb ~~~ kp ~~~ tr ~~~ cfr ~~~ dns ~~~ sec ~~~ mon --> vel ~~~ otel ~~~ pid
+        db["operators: Percona MongoDB · CloudNativePG · Redis → Harbor (harbor-db, harbor-redis, R2)"]
+        hs ~~~ kb ~~~ kp ~~~ tr ~~~ cfr ~~~ dns ~~~ sec ~~~ mon --> vel ~~~ otel ~~~ pid ~~~ db
     end
     cluster --> setup["Pocket ID: admin com passkey em /setup → API key"]
     setup --> ident["terraform/identity apply<br/>grupos k8s-admins/vpn, clients kubectl e headscale"]
     ident --> infra2["terraform/infra apply com oidc_client_id e headscale_*<br/>→ sync-gateway instala o Headscale · sync-masters liga o OIDC"]
+    ident --> reg["terraform/registry apply (via VPN)<br/>OIDC do Harbor, projeto tsuru, robot"]
 ```
 
 Mudanças futuras nos drop-ins dos masters não passam pelo cloud-init (os masters ignoram `user_data`): depois do

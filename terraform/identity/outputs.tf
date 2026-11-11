@@ -22,3 +22,12 @@ output "grafana_oidc" {
   }
   sensitive = true
 }
+
+output "harbor_oidc" {
+  description = "Read by terraform/registry for Harbor's OIDC login. Pocket ID only returns the secret when the client is created."
+  value = {
+    client_id     = pocketid_client.harbor.id
+    client_secret = pocketid_client.harbor.client_secret
+  }
+  sensitive = true
+}

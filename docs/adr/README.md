@@ -39,3 +39,4 @@ Para criar um ADR, copie [`template.md`](template.md) para o próximo número li
 | [0030](0030-mongodb-percona-operator.md) | MongoDB com o Percona Operator, backups com PITR no R2 | Aceito |
 | [0031](0031-postgres-cloudnativepg.md) | PostgreSQL com o CloudNativePG, backups pelo plugin Barman Cloud no R2 | Aceito |
 | [0032](0032-redis-operator.md) | Redis com o operator da OT-Container-Kit (Redis 7.2, BSD) | Aceito |
+| [0033](0033-harbor-registry.md) | Harbor como registry: nome público com IP privado, banco no CloudNativePG, Redis do operator | Aceito |

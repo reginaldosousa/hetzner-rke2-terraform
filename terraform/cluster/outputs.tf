@@ -15,3 +15,14 @@ output "mongodb_tsuru_uri" {
   sensitive   = true
   value       = "mongodb://tsuru:${random_password.mongodb_tsuru.result}@${local.mongodb_rs_host}/tsuru?replicaSet=${local.mongodb_replset}&authSource=admin"
 }
+
+output "harbor_url" {
+  description = "Harbor's URL (ADR 0033), read by terraform/registry."
+  value       = local.harbor_url
+}
+
+output "harbor_admin_password" {
+  description = "Harbor's admin password: terraform/registry's provider credential and the break-glass login."
+  value       = random_password.harbor_admin.result
+  sensitive   = true
+}

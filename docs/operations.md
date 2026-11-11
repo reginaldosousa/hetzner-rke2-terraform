@@ -12,6 +12,8 @@ terraform -chdir=terraform/infra apply tfplan
 scripts/sync-masters.sh --dry-run           # se mudou algo em templates/master/: rode sem --dry-run
 terraform -chdir=terraform/cluster plan -out=tfplan
 terraform -chdir=terraform/cluster apply tfplan
+terraform -chdir=terraform/registry plan -out=tfplan   # Harbor (precisa da VPN), quando mudar
+terraform -chdir=terraform/registry apply tfplan
 scripts/backup-state.sh                     # R2 não tem versionamento; copia também para o bucket
 ```
 
@@ -25,7 +27,8 @@ Validação estática antes de commitar:
 terraform fmt -check -recursive terraform
 terraform -chdir=terraform/infra validate
 terraform -chdir=terraform/cluster validate
-helm lint terraform/cluster/charts/nodepools
+terraform -chdir=terraform/registry validate
+helm lint --strict terraform/cluster/charts/*
 scripts/sync-gateway.sh --dry-run           # drift do gateway vs. Terraform
 scripts/sync-masters.sh --dry-run           # drift da config do RKE2 nos masters
 ```
@@ -359,6 +362,32 @@ helm uninstall smoke -n redis-smoke && kubectl delete ns redis-smoke
 No failover, o Sentinel promove a réplica em segundos, mas o Service `<nome>-master` só volta quando o operator
 troca o label `redis-role` (medido em 2026-11-10: ~35-40 s sem endpoints). Clientes que falam com o Sentinel
 direto (`<nome>-s-hl:26379`, master `mymaster`) se recuperam mais rápido.
+
+## Harbor
+
+`https://harbor.devcomm.com.br`, só pela VPN ([ADR 0033](adr/0033-harbor-registry.md)). Login pelo Pocket ID
+("Login via OIDC provider"); `k8s-admins` são admins. O usuário é criado no primeiro login.
+
+```bash
+# Primeira vez: cluster (Harbor) → identity (client harbor) → registry (OIDC, projeto, robot)
+terraform -chdir=terraform/identity apply
+terraform -chdir=terraform/registry init && terraform -chdir=terraform/registry apply
+
+# docker login: no Harbor, perfil do usuário → "CLI secret" (o login OIDC não tem senha)
+docker login harbor.devcomm.com.br -u <usuário>
+docker pull alpine:3 && docker tag alpine:3 harbor.devcomm.com.br/tsuru/smoke:1
+docker push harbor.devcomm.com.br/tsuru/smoke:1
+# Um nó consegue baixar (testa DNS público → LB privado):
+kubectl run pull-test --rm -it --restart=Never --image=harbor.devcomm.com.br/tsuru/smoke:1 \
+  --overrides='{"spec":{"imagePullSecrets":[{"name":"<secret do robot>"}]}}' -- true
+
+# Break-glass (Pocket ID fora do ar): usuário admin
+terraform -chdir=terraform/cluster output -raw harbor_admin_password
+```
+
+O banco é o `Cluster` `harbor-db` (veja PostgreSQL acima) e o Redis é o `harbor-redis` (`kubectl -n harbor get
+redisreplication`). As imagens ficam no volume `harbor-registry` (50 GB, `harbor_registry_volume_size`; a Hetzner aumenta o volume no lugar, nunca diminui). Quando sair o chart da 2.16, troque `harbor_chart_version` e o `harbor_version` passa a
+ser só o pin das imagens.
 
 ## Monitoramento
 

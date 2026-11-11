@@ -18,7 +18,8 @@ Hetzner cobra por hora até o teto mensal, e os preços mudam: revise esta pági
 | Volume do Pocket ID (SQLite) | `pocket-id.tf` ([ADR 0023](adr/0023-oidc-pocket-id.md)) | 10 GB | US$ 0,0767/GB | US$ 0,77 |
 | Volumes do Loki e do Tempo (WAL; os dados ficam no R2) | `loki.tf`, `tempo.tf` ([ADR 0029](adr/0029-observability-opentelemetry.md)) | 20 GB | US$ 0,0767/GB | US$ 1,53 |
 | Volumes do MongoDB (3 membros) | `mongodb.tf` ([ADR 0030](adr/0030-mongodb-percona-operator.md)) | 30 GB | US$ 0,0767/GB | US$ 2,30 |
-| **Subtotal fixo** | | | | **US$ 65,22** |
+| Volumes do Harbor (imagens 50 GB, cache do Trivy e as 2 instâncias do `harbor-db`) | `harbor.tf` ([ADR 0033](adr/0033-harbor-registry.md)) | 80 GB | US$ 0,0767/GB | US$ 6,14 |
+| **Subtotal fixo** | | | | **US$ 71,36** |
 
 Sem custo: rede privada, subnet, rotas, firewall, placement group, chave SSH e IPv6 primário.
 
@@ -28,7 +29,7 @@ Sem custo: rede privada, subnet, rotas, firewall, placement group, chave SSH e I
 |---|---|---|
 | Workers Karpenter `cax11` | US$ 6,99/mês (US$ 0,0112/h) | por worker, cobrado por hora enquanto existir |
 | `cax21` / `cax31` / `cax41` | US$ 12,49 / 24,99 / 48,49 | o Karpenter pode escolher conforme os pedidos dos pods |
-| Volumes CSI (`hcloud-volumes`) | US$ 0,0767/GB/mês | mínimo de 10 GB (≈ US$ 0,77); além dos 90 GB fixos (monitoramento, Loki, Tempo, Pocket ID e MongoDB), nenhum em uso hoje |
+| Volumes CSI (`hcloud-volumes`) | US$ 0,0767/GB/mês | mínimo de 10 GB (≈ US$ 0,77); além dos 170 GB fixos (monitoramento, Loki, Tempo, Pocket ID, MongoDB e Harbor), nenhum em uso hoje |
 | Tráfego | 20 TB inclusos por servidor e pelo LB; excedente US$ 1,20/TB | tráfego na rede privada não é cobrado |
 | Backups Hetzner | +20% do servidor | desligados |
 

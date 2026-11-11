@@ -298,3 +298,45 @@ variable "redis_operator_chart_version" {
   type        = string
   default     = "0.27.0"
 }
+
+variable "harbor_chart_version" {
+  description = "goharbor harbor chart version (ADR 0033). 1.19.4 ships Harbor 2.15 (amd64 only), so harbor_version overrides its images until a 2.16 chart is out."
+  type        = string
+  default     = "1.19.4"
+}
+
+variable "harbor_version" {
+  description = "Tag of every goharbor image; v2.16.0 is the first multi-arch release."
+  type        = string
+  default     = "v2.16.0"
+}
+
+variable "harbor_hostname" {
+  description = "Harbor's name: public DNS pointing at the private ingress LB (ADR 0033). Must be in one of external_dns_domains and outside the internal domain."
+  type        = string
+  default     = "harbor.devcomm.com.br"
+}
+
+variable "harbor_registry_volume_size" {
+  description = "Hetzner volume for Harbor's image blobs (ReadWriteOnce, so one registry pod). Hetzner volumes grow in place; they never shrink."
+  type        = string
+  default     = "50Gi"
+}
+
+variable "redis_replication_chart_version" {
+  description = "OT-Container-Kit redis-replication chart version (RedisReplication CR with Sentinel)."
+  type        = string
+  default     = "0.17.1"
+}
+
+variable "redis_image_tag" {
+  description = "quay.io/opstree/redis and redis-sentinel tag. Stay on 7.2.x: the last BSD-licensed Redis (ADR 0032)."
+  type        = string
+  default     = "v7.2.16"
+}
+
+variable "redis_exporter_image_tag" {
+  description = "quay.io/opstree/redis-exporter tag for Redis instances."
+  type        = string
+  default     = "v1.89.0"
+}
