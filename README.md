@@ -224,7 +224,7 @@ Zone Read + DNS Write on those zones only); set `external_dns_domains` in
 It runs with `policy: sync`: deleting an Ingress deletes its records. TXT
 ownership records (owner = cluster name) keep it from touching records it did
 not create. To proxy a host through Cloudflare, annotate the Ingress with
-`external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"`.
+`external-dns.kubernetes.io/cloudflare-proxied: "true"`.
 
 ```bash
 kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record

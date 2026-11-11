@@ -218,7 +218,7 @@ resource "helm_release" "harbor" {
           "cert-manager.io/cluster-issuer"                   = "letsencrypt-prod"
           # A public record with the private LB's IP, not the public LB's IP
           # every Ingress status carries (ADR 0033).
-          "external-dns.alpha.kubernetes.io/target" = local.infra.internal_ingress_ip
+          "external-dns.kubernetes.io/target" = local.infra.internal_ingress_ip
         }
       }
     }
