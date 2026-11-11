@@ -386,7 +386,7 @@ terraform -chdir=terraform/cluster output -raw harbor_admin_password
 ```
 
 O banco é o `Cluster` `harbor-db` (veja PostgreSQL acima) e o Redis é o `harbor-redis` (`kubectl -n harbor get
-redisreplication`). Quando sair o chart da 2.16, troque `harbor_chart_version` e o `harbor_version` passa a
+redisreplication`). As imagens ficam no volume `harbor-registry` (50 GB, `harbor_registry_volume_size`; a Hetzner aumenta o volume no lugar, nunca diminui). Quando sair o chart da 2.16, troque `harbor_chart_version` e o `harbor_version` passa a
 ser só o pin das imagens.
 
 ## Monitoramento

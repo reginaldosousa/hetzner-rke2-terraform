@@ -246,7 +246,7 @@ alternativas descartadas.
 ### Harbor
 - **Papel:** registry de imagens em `harbor.devcomm.com.br`, um nome público que aponta para o LB interno (só VPN e
   rede privada). Login pelo Pocket ID (`k8s-admins` são admins), projeto `tsuru` com retenção e robot do Tsuru,
-  scan com Trivy. Imagens no R2 (`rke2-harbor`), banco no CloudNativePG (`harbor-db`), Redis do operator
+  scan com Trivy. Imagens num volume de 50 GB (o R2 rejeita os uploads multipart do registry), banco no CloudNativePG (`harbor-db`), Redis do operator
   (`harbor-redis`, com Sentinel). A configuração é do root `terraform/registry`.
 - **Por quê:** projetos, robots, OIDC, retenção e scan num registry só, com imagens arm64 a partir da 2.16. O
   nome público com IP privado deixa os nós baixarem imagens sem enxergar a zona interna.

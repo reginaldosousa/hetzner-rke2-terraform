@@ -41,7 +41,7 @@ flowchart TB
     gw -. "VPN clients: only :22, :6443<br/>and internal apps (:80/:443 on the private LB)" .-> workers
     masters -. "egress: route 0.0.0.0/0 → gateway NAT" .-> gw
     workers -. "egress" .-> gw
-    gw -. "R2 (etcd snapshots, Velero, Headscale DB, MongoDB and Postgres backups, Harbor images), Telegram, healthchecks.io" .-> ext(("internet"))
+    gw -. "R2 (etcd snapshots, Velero, Headscale DB, MongoDB and Postgres backups), Telegram, healthchecks.io" .-> ext(("internet"))
 ```
 
 | Piece | Where |
