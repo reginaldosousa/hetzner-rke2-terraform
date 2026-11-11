@@ -10,8 +10,10 @@ resource "kubernetes_secret_v1" "cloudflare" {
   }
 }
 
+# external-dns 0.23+ reads only the external-dns.kubernetes.io/ prefix; the old
+# external-dns.alpha.kubernetes.io/ annotations are silently ignored.
 # Publishes Ingress hosts (and Services annotated with
-# external-dns.alpha.kubernetes.io/hostname) to Cloudflare, pointing at the
+# external-dns.kubernetes.io/hostname) to Cloudflare, pointing at the
 # ingress LB's public IPs.
 resource "helm_release" "external_dns" {
   name       = "external-dns"

@@ -41,7 +41,7 @@ flowchart TB
     gw -. "VPN clients: only :22, :6443<br/>and internal apps (:80/:443 on the private LB)" .-> workers
     masters -. "egress: route 0.0.0.0/0 → gateway NAT" .-> gw
     workers -. "egress" .-> gw
-    gw -. "R2 (etcd snapshots, Velero, Headscale DB, MongoDB and Postgres backups, Harbor images), Telegram, healthchecks.io" .-> ext(("internet"))
+    gw -. "R2 (etcd snapshots, Velero, Headscale DB, MongoDB and Postgres backups), Telegram, healthchecks.io" .-> ext(("internet"))
 ```
 
 | Piece | Where |
@@ -227,7 +227,7 @@ Zone Read + DNS Write on those zones only); set `external_dns_domains` in
 It runs with `policy: sync`: deleting an Ingress deletes its records. TXT
 ownership records (owner = cluster name) keep it from touching records it did
 not create. To proxy a host through Cloudflare, annotate the Ingress with
-`external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"`.
+`external-dns.kubernetes.io/cloudflare-proxied: "true"`.
 
 ```bash
 kubectl -n kube-system logs deploy/external-dns   # "CREATE" lines per record

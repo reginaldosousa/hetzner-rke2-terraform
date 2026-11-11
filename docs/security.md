@@ -38,7 +38,6 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Senha do usuário `tsuru` no MongoDB | state do `cluster` (`random_password`) → Secret `mongodb/mongodb-app-users`, output `mongodb_tsuru_uri` | Tsuru API |
 | Credenciais R2 (Postgres) | token criado pelo `cluster` → um Secret `<banco>-r2` no namespace de cada banco | plugin Barman Cloud; escopo só no bucket `rke2-postgres` |
 | Senhas dos bancos Postgres | geradas pelo CloudNativePG → Secrets `<banco>-app` e `<banco>-superuser` (nunca no state) | o app do namespace; o superuser só para operação |
-| Credenciais R2 (Harbor) | token criado pelo `cluster` → Secret `harbor/harbor-r2` | registry do Harbor; escopo só no bucket `rke2-harbor` |
 | Senha admin, `secretKey` e credencial interna do registry do Harbor | state do `cluster` (`random_password`) → Secret `harbor/harbor-secrets`; senha admin no output `harbor_admin_password` | Harbor; admin é o break-glass e a credencial do root `registry`. Perder o `secretKey` torna ilegíveis as credenciais guardadas no banco |
 | Senha do Redis do Harbor | state do `cluster` (`random_password`) → Secret `harbor/harbor-redis` e **ConfigMaps do Harbor** (o chart a escreve nas URLs de conexão) | Redis (operator) e Harbor |
 | Secret do client OIDC do Harbor | state do `identity` → API do Harbor (atributo write-only do root `registry`, fora do state dele) | Harbor |
@@ -129,7 +128,7 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   Um `tfvars` ou `kubeconfig` commitado por engano seria público na hora, por isso o `.gitignore` e a push
   protection importam.
 - **Snapshots e backups têm todo o conteúdo do cluster**: os buckets `rke2-etcd-snapshots`, `rke2-velero`,
-  `rke2-mongodb`, `rke2-postgres` e `rke2-harbor` devem ser tratados como sensíveis. O `rke2-loki` também: tem tudo o que os pods imprimem, inclusive um segredo que
+  `rke2-mongodb` e `rke2-postgres` devem ser tratados como sensíveis, assim como o volume `harbor/harbor-registry`, que tem todas as imagens. O `rke2-loki` também: tem tudo o que os pods imprimem, inclusive um segredo que
   um app logue por engano. No Grafana, quem é Viewer (grupo `vpn`) lê esses logs. Os Secrets estão cifrados no etcd (`secrets-encryption` do RKE2), mas o resto não.
 - **Masters `cax11` (4 GB)**: usavam de 37% a 49% da memória sem carga, antes do node-exporter e dos agentes. O
   upgrade para `cax21` foi adiado, e os alertas de memória do kube-prometheus-stack avisam se apertar.

@@ -112,42 +112,18 @@ resource "helm_release" "harbor_redis" {
   depends_on = [helm_release.redis_operator, helm_release.kube_prometheus_stack]
 }
 
-# --- Registry storage in R2 ---
+# --- Registry storage ---
 
-resource "cloudflare_r2_bucket" "harbor" {
-  account_id = var.cloudflare_account_id
-  name       = var.harbor_bucket
-  location   = "weur"
+# Images were meant for R2, but R2 requires every multipart part except the
+# last to be the same size and the registry's S3 driver writes uneven parts:
+# any blob larger than one part fails with InvalidPart (tested 2026-11-11,
+# ADR 0033). The bucket leaves Terraform without being deleted; remove it in
+# Cloudflare once it's no longer needed.
+removed {
+  from = cloudflare_r2_bucket.harbor
 
   lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "cloudflare_account_token" "harbor" {
-  account_id = var.cloudflare_account_id
-  name       = "${local.infra.cluster_name}-harbor"
-
-  policies = [{
-    effect = "allow"
-    permission_groups = [{
-      id = one(data.cloudflare_account_api_token_permission_groups_list.r2_object_write.result).id
-    }]
-    resources = jsonencode({
-      "com.cloudflare.edge.r2.bucket.${var.cloudflare_account_id}_default_${cloudflare_r2_bucket.harbor.name}" = "*"
-    })
-  }]
-}
-
-resource "kubernetes_secret_v1" "harbor_r2" {
-  metadata {
-    name      = "harbor-r2"
-    namespace = kubernetes_namespace_v1.harbor.metadata[0].name
-  }
-
-  data = {
-    REGISTRY_STORAGE_S3_ACCESSKEY = cloudflare_account_token.harbor.id
-    REGISTRY_STORAGE_S3_SECRETKEY = sha256(cloudflare_account_token.harbor.value)
+    destroy = false
   }
 }
 
@@ -195,6 +171,9 @@ resource "helm_release" "harbor" {
 
   values = [yamlencode({
     externalURL = local.harbor_url
+    # The registry's volume is ReadWriteOnce: a rolling update would leave the
+    # new pod waiting for the old one's volume.
+    updateStrategy = { type = "Recreate" }
 
     expose = {
       type = "ingress"
@@ -218,7 +197,7 @@ resource "helm_release" "harbor" {
           "cert-manager.io/cluster-issuer"                   = "letsencrypt-prod"
           # A public record with the private LB's IP, not the public LB's IP
           # every Ingress status carries (ADR 0033).
-          "external-dns.alpha.kubernetes.io/target" = local.infra.internal_ingress_ip
+          "external-dns.kubernetes.io/target" = local.infra.internal_ingress_ip
         }
       }
     }
@@ -231,22 +210,14 @@ resource "helm_release" "harbor" {
       enabled        = true
       resourcePolicy = "keep"
       persistentVolumeClaim = {
+        # Image blobs (not R2, see above). Velero copies it daily (ADR 0022).
+        registry = { size = var.harbor_registry_volume_size }
         # Hetzner's minimum; the vulnerability DB cache.
         trivy = { size = "10Gi" }
       }
       imageChartStorage = {
-        type = "s3"
-        # Clients pull through the registry, never from a presigned R2 URL.
-        disableredirect = true
-        s3 = {
-          existingSecret = kubernetes_secret_v1.harbor_r2.metadata[0].name
-          bucket         = cloudflare_r2_bucket.harbor.name
-          region         = "auto"
-          regionendpoint = "https://${local.r2_endpoint}"
-          rootdirectory  = "/${local.infra.cluster_name}"
-          secure         = true
-          v4auth         = true
-        }
+        type       = "filesystem"
+        filesystem = { rootdirectory = "/storage" }
       }
     }
 
@@ -277,16 +248,32 @@ resource "helm_release" "harbor" {
       }
     }
 
-    portal = { image = { tag = var.harbor_version } }
-    core   = { image = { tag = var.harbor_version } }
+    # The chart sets no requests, so the scheduler packed Harbor onto a full
+    # node and Karpenter saw no reason to add one: core starved, failed its
+    # liveness probe and restarted in a loop.
+    portal = {
+      image     = { tag = var.harbor_version }
+      resources = { requests = { cpu = "10m", memory = "32Mi" }, limits = { memory = "128Mi" } }
+    }
+    core = {
+      image     = { tag = var.harbor_version }
+      resources = { requests = { cpu = "200m", memory = "256Mi" }, limits = { memory = "1Gi" } }
+    }
     jobservice = {
-      image = { tag = var.harbor_version }
+      image     = { tag = var.harbor_version }
+      resources = { requests = { cpu = "50m", memory = "128Mi" }, limits = { memory = "512Mi" } }
       # Job logs go to stdout (and Loki) instead of a 10 GB volume.
       jobLoggers = ["stdout"]
     }
     registry = {
-      registry   = { image = { tag = var.harbor_version } }
-      controller = { image = { tag = var.harbor_version } }
+      registry = {
+        image     = { tag = var.harbor_version }
+        resources = { requests = { cpu = "200m", memory = "256Mi" }, limits = { memory = "1Gi" } }
+      }
+      controller = {
+        image     = { tag = var.harbor_version }
+        resources = { requests = { cpu = "10m", memory = "32Mi" }, limits = { memory = "128Mi" } }
+      }
       credentials = {
         existingSecret = kubernetes_secret_v1.harbor_secrets.metadata[0].name
       }
@@ -302,8 +289,11 @@ resource "helm_release" "harbor" {
         "backup.velero.io/backup-volumes-excludes" = "data"
       }
     }
-    exporter = { image = { tag = var.harbor_version } }
-    nginx    = { image = { tag = var.harbor_version } }
+    exporter = {
+      image     = { tag = var.harbor_version }
+      resources = { requests = { cpu = "10m", memory = "64Mi" }, limits = { memory = "256Mi" } }
+    }
+    nginx = { image = { tag = var.harbor_version } }
 
     metrics = {
       enabled        = true
