@@ -28,9 +28,8 @@ ainda estava no 1.19.4 (Harbor 2.15.4, só amd64).
   `charts/pg-cluster` no namespace `harbor` (2 instâncias, PostgreSQL 17), e o Harbor lê o Secret `harbor-db-app`.
   Conexão direta no `harbor-db-rw`, sem PgBouncer, e com no máximo 50 conexões por pod.
 - **Redis do operator** ([ADR 0032](0032-redis-operator.md)): `harbor-redis`, uma `RedisReplication` (primária +
-  réplica, Redis 7.2) com Sentinel, sem volume. O Harbor usa o Service `harbor-redis-master`, que o operator
-  move para a nova primária quando o Sentinel promove a réplica. Usar o Sentinel direto no Harbor seria pior: o
-  cliente de cada componente trata Sentinel de um jeito, e nenhum autentica no Sentinel.
+  réplica, Redis 7.2) com Sentinel, sem volume. O Harbor fala com o **Sentinel** (`harbor-redis-s-{0,1,2}.harbor-redis-s-hl:26379`, master `mymaster`), que
+  promove a réplica em segundos. O Sentinel não tem senha: os clientes do Harbor 2.16 só mandam a senha ao Redis.
 - **Imagens no R2** (bucket `rke2-harbor`, token só nele), pelo driver S3 do registry, com `disableredirect`: o
   cliente baixa pelo Harbor, não por URL assinada do R2.
 - **Segredos estáveis pelo Terraform:** senha do admin, `secretKey` (cifra as credenciais guardadas no banco) e a
@@ -68,7 +67,5 @@ ainda estava no 1.19.4 (Harbor 2.15.4, só amd64).
 - O token interno que o core assina é recriado a cada upgrade do chart (o chart gera um certificado novo). Isso
   derruba sessões de `docker login` no meio do upgrade, sem perder dado.
 - O bucket `rke2-harbor` tem todas as imagens e é tão sensível quanto o código delas.
-- Quando a primária do Redis cai, o Sentinel promove a réplica em segundos, mas o Service `harbor-redis-master`
-  fica sem endpoints até o operator trocar o label (~35-40 s, medido no teste do operator em 2026-11-10). Nesse
-  intervalo, login e jobs do Harbor falham e pulls de imagens já em cache seguem. Se isso incomodar, a troca é
-  apontar o Harbor para o Sentinel (`harbor-redis-s-hl:26379`, `sentinelMasterSet: mymaster`).
+- O Service `harbor-redis-master` do operator só volta ~35-40 s depois de um failover (medido em 2026-11-10), por
+  isso o Harbor usa o Sentinel e não esse Service.

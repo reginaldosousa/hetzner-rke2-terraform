@@ -267,8 +267,11 @@ resource "helm_release" "harbor" {
     redis = {
       type = "external"
       external = {
-        # Follows the primary: the operator relabels it after a Sentinel failover.
-        addr = "harbor-redis-master:6379"
+        # Straight to Sentinel: it promotes the replica in seconds, while the
+        # operator's harbor-redis-master Service lags ~40 s behind (ADR 0033).
+        # Harbor sends the password only to Redis, never to Sentinel (no auth).
+        addr              = join(",", [for i in range(3) : "harbor-redis-s-${i}.harbor-redis-s-hl:26379"])
+        sentinelMasterSet = "mymaster"
         # The password is set below. The chart writes it into its ConfigMaps
         # either way; existingSecret would only add a render-time lookup.
       }
