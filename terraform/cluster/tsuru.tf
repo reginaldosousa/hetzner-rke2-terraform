@@ -6,8 +6,7 @@ locals {
   tsuru_enabled     = var.tsuru_oidc != null && var.tsuru_registry != null
   tsuru_api_host    = "tsuru.${local.internal_domain}"
   tsuru_apps_domain = "apps.${local.internal_domain}"
-  # Tsuru names app images <registry>/tsuru/app-<name>, so the registry is the
-  # bare host and Harbor's tsuru project is the image namespace.
+  # Harbor's host; the image path also needs its project (clusters.defaults below).
   tsuru_registry_host = local.tsuru_enabled ? var.tsuru_registry.server : ""
   # Internal-only routing for every Ingress the router creates (ADR 0027).
   tsuru_router_annotations = {
@@ -45,7 +44,7 @@ resource "random_password" "tsuru_router" {
   special = false
 }
 
-# Expanded by Tsuru's config ($MONGODB_URL, $ROUTER_PASSWORD), so neither
+# Expanded by Tsuru's config ($MONGODB_URL, $ROUTER_AUTHORIZATION), so neither
 # lands in its ConfigMap. The chart uppercases each key into the env name.
 resource "kubernetes_secret_v1" "tsuru_api_env" {
   count = local.tsuru_enabled ? 1 : 0
@@ -56,8 +55,10 @@ resource "kubernetes_secret_v1" "tsuru_api_env" {
   }
 
   data = {
-    mongodb_url     = local.mongodb_tsuru_uri
-    router_password = random_password.tsuru_router[0].result
+    mongodb_url = local.mongodb_tsuru_uri
+    # A header, never the URL: Tsuru prints the router URL in API error
+    # messages, so credentials there leak to any user who hits an error.
+    router_authorization = "Basic ${base64encode("tsuru:${random_password.tsuru_router[0].result}")}"
   }
 }
 
@@ -189,9 +190,10 @@ resource "helm_release" "tsuru_api" {
       provisioner = "kubernetes"
       routers = {
         ingress-router = {
-          type = "api"
-          # Basic auth in the URL: Tsuru expands env vars only in plain string values.
-          api-url = "http://tsuru:$ROUTER_PASSWORD@kubernetes-router.${kubernetes_namespace_v1.tsuru[0].metadata[0].name}/api/ingress"
+          type    = "api"
+          api-url = "http://kubernetes-router.${kubernetes_namespace_v1.tsuru[0].metadata[0].name}/api/ingress"
+          # Each header is read with GetString, which expands $ENV.
+          headers = { Authorization = "$ROUTER_AUTHORIZATION" }
         }
       }
       docker = {
@@ -207,9 +209,12 @@ resource "helm_release" "tsuru_api" {
       # into a map, so it is set on the cluster at bootstrap (docs/operations.md).
       clusters = {
         defaults = {
-          build-service-address         = "dns:///deploy-agent.${kubernetes_namespace_v1.tsuru_build[0].metadata[0].name}:80"
-          build-service-tls             = "false"
-          registry                      = local.tsuru_registry_host
+          build-service-address = "dns:///deploy-agent.${kubernetes_namespace_v1.tsuru_build[0].metadata[0].name}:80"
+          build-service-tls     = "false"
+          # The Kubernetes build names images <registry>/app-<name> from this
+          # key and ignores docker:repository-namespace, so the Harbor project
+          # goes here.
+          registry                      = "${local.tsuru_registry_host}/${var.tsuru_registry.project}"
           registry-insecure             = "false"
           disable-default-node-selector = "true"
         }
@@ -218,4 +223,89 @@ resource "helm_release" "tsuru_api" {
   })]
 
   depends_on = [helm_release.mongodb, helm_release.tsuru_router, helm_release.tsuru_deploy_agent]
+}
+
+# The router's chart RBAC has no access to Secrets or cert-manager, which cname
+# certificates need (`tsuru certificate issuer set`). A Role in the apps'
+# namespace only, so the router can't read Secrets anywhere else.
+locals {
+  # Tsuru's local cluster puts apps in "default" unless the cluster's custom
+  # "namespace" key says otherwise.
+  tsuru_apps_namespace = "default"
+}
+
+resource "kubernetes_role_v1" "tsuru_router_certs" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name      = "tsuru-router-certs"
+    namespace = local.tsuru_apps_namespace
+  }
+
+  rule {
+    api_groups = [""]
+    resources  = ["secrets"]
+    verbs      = ["get"]
+  }
+  rule {
+    api_groups = ["cert-manager.io"]
+    resources  = ["certificates"]
+    verbs      = ["get", "create", "update", "delete"]
+  }
+  rule {
+    api_groups = ["cert-manager.io"]
+    resources  = ["issuers"]
+    verbs      = ["get"]
+  }
+}
+
+resource "kubernetes_role_binding_v1" "tsuru_router_certs" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name      = "tsuru-router-certs"
+    namespace = local.tsuru_apps_namespace
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role_v1.tsuru_router_certs[0].metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = "kubernetes-router"
+    namespace = kubernetes_namespace_v1.tsuru[0].metadata[0].name
+  }
+}
+
+# ClusterIssuers are cluster-scoped; reading them reveals no secrets.
+resource "kubernetes_cluster_role_v1" "tsuru_router_clusterissuers" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name = "tsuru-router-clusterissuers"
+  }
+  rule {
+    api_groups = ["cert-manager.io"]
+    resources  = ["clusterissuers"]
+    verbs      = ["get"]
+  }
+}
+
+resource "kubernetes_cluster_role_binding_v1" "tsuru_router_clusterissuers" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name = "tsuru-router-clusterissuers"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role_v1.tsuru_router_clusterissuers[0].metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = "kubernetes-router"
+    namespace = kubernetes_namespace_v1.tsuru[0].metadata[0].name
+  }
 }
