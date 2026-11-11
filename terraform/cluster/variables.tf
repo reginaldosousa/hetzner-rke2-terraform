@@ -317,10 +317,10 @@ variable "harbor_hostname" {
   default     = "harbor.devcomm.com.br"
 }
 
-variable "harbor_bucket" {
-  description = "R2 bucket for Harbor's image blobs."
+variable "harbor_registry_volume_size" {
+  description = "Hetzner volume for Harbor's image blobs (ReadWriteOnce, so one registry pod). Hetzner volumes grow in place; they never shrink."
   type        = string
-  default     = "rke2-harbor"
+  default     = "50Gi"
 }
 
 variable "redis_replication_chart_version" {
