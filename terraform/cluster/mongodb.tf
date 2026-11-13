@@ -2,10 +2,11 @@
 # Percona Backup for MongoDB writing daily backups and the oplog (PITR) to R2.
 # Tsuru is the first user; each app user is declared in the CR below.
 locals {
-  mongodb_name     = "mongodb"
-  mongodb_replset  = "rs0"
-  mongodb_rs_host  = "${local.mongodb_name}-${local.mongodb_replset}.${local.mongodb_name}.svc.cluster.local"
-  mongodb_r2_store = "r2"
+  mongodb_name      = "mongodb"
+  mongodb_replset   = "rs0"
+  mongodb_rs_host   = "${local.mongodb_name}-${local.mongodb_replset}.${local.mongodb_name}.svc.cluster.local"
+  mongodb_r2_store  = "r2"
+  mongodb_tsuru_uri = "mongodb://tsuru:${random_password.mongodb_tsuru.result}@${local.mongodb_rs_host}/tsuru?replicaSet=${local.mongodb_replset}&authSource=admin"
 }
 
 resource "kubernetes_namespace_v1" "mongodb" {

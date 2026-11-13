@@ -63,6 +63,7 @@ flowchart TB
 | PostgreSQL (CloudNativePG, Barman Cloud to R2) | `terraform/cluster/postgres.tf`, `charts/pg-cluster` |
 | Redis operator (OT-Container-Kit) | `terraform/cluster/redis-operator.tf` |
 | Harbor registry (+ its CNPG database and Redis) | `terraform/cluster/harbor.tf`; configuration in `terraform/registry/` |
+| Tsuru PaaS (API, router, deploy-agent; cname → public) | `terraform/cluster/tsuru.tf`, `internal-apps.tf` |
 
 Four Terraform roots: `infra` talks only to the Hetzner API; `cluster` talks to
 Kubernetes and therefore runs **over the VPN**; `identity` manages Pocket ID
@@ -148,6 +149,8 @@ ADRs 0023–0026):
 #      | jq '{grafana_oidc: .}' > terraform/cluster/grafana-oidc.auto.tfvars.json
 # 10. Harbor: apply identity (harbor client), then terraform/registry over the VPN:
 #     terraform -chdir=terraform/registry init && terraform -chdir=terraform/registry apply
+# 11. Tsuru: tsuru_oidc (identity) and tsuru_registry (registry) into cluster's
+#     *.auto.tfvars.json, apply cluster, then the bootstrap in docs/operations.md ("Tsuru").
 ```
 
 ## Verify

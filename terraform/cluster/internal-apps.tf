@@ -18,6 +18,8 @@ resource "helm_release" "internal_tls" {
 
   values = [yamlencode({
     internalDomain = local.internal_domain
+    # Tsuru's apps live one level deeper (ADR 0034).
+    extraWildcards = local.tsuru_enabled ? ["apps"] : []
   })]
 
   lifecycle {
@@ -105,6 +107,62 @@ resource "kubernetes_manifest" "internal_hosts_policy_binding" {
     spec = {
       policyName        = kubernetes_manifest.internal_hosts_policy.manifest.metadata.name
       validationActions = ["Deny"]
+    }
+  }
+}
+
+# Tsuru apps are internal until `tsuru cname add` (ADR 0034). The router gives
+# every Ingress the internal entrypoint, cnames included; this moves a cname's
+# Ingress to the public one when all its hosts are outside the internal zone.
+# Without it, cnames stay internal (fails closed).
+resource "kubernetes_manifest" "tsuru_cname_public_policy" {
+  manifest = {
+    apiVersion = "admissionregistration.k8s.io/v1"
+    kind       = "MutatingAdmissionPolicy"
+    metadata   = { name = "tsuru-cname-public" }
+    spec = {
+      failurePolicy = "Fail"
+      matchConstraints = {
+        resourceRules = [{
+          apiGroups   = ["networking.k8s.io"]
+          apiVersions = ["v1"]
+          operations  = ["CREATE", "UPDATE"]
+          resources   = ["ingresses"]
+        }]
+        objectSelector = { matchLabels = { "router.tsuru.io/is-cname-ingress" = "true" } }
+      }
+      matchConditions = [{
+        name       = "all-hosts-public"
+        expression = <<-EOT
+          has(object.spec.rules) && size(object.spec.rules) > 0 &&
+          object.spec.rules.all(r, has(r.host) &&
+            !(r.host == '${local.internal_domain}' || r.host.endsWith('.${local.internal_domain}')))
+        EOT
+      }]
+      reinvocationPolicy = "Never"
+      mutations = [{
+        patchType = "ApplyConfiguration"
+        applyConfiguration = {
+          expression = <<-EOT
+            Object{
+              metadata: Object.metadata{
+                annotations: {"traefik.ingress.kubernetes.io/router.entrypoints": "websecure"}
+              }
+            }
+          EOT
+        }
+      }]
+    }
+  }
+}
+
+resource "kubernetes_manifest" "tsuru_cname_public_binding" {
+  manifest = {
+    apiVersion = "admissionregistration.k8s.io/v1"
+    kind       = "MutatingAdmissionPolicyBinding"
+    metadata   = { name = "tsuru-cname-public" }
+    spec = {
+      policyName = kubernetes_manifest.tsuru_cname_public_policy.manifest.metadata.name
     }
   }
 }

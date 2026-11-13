@@ -147,6 +147,7 @@ flowchart TB
     setup --> ident["terraform/identity apply<br/>grupos k8s-admins/vpn, clients kubectl e headscale"]
     ident --> infra2["terraform/infra apply com oidc_client_id e headscale_*<br/>→ sync-gateway instala o Headscale · sync-masters liga o OIDC"]
     ident --> reg["terraform/registry apply (via VPN)<br/>OIDC do Harbor, projeto tsuru, robot"]
+    reg --> tsuru["terraform/cluster apply com tsuru_oidc e tsuru_registry<br/>→ Tsuru (API, router, deploy-agent) · bootstrap pelo CLI"]
 ```
 
 Mudanças futuras nos drop-ins dos masters não passam pelo cloud-init (os masters ignoram `user_data`): depois do

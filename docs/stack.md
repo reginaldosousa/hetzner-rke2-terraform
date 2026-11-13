@@ -103,8 +103,8 @@ alternativas descartadas.
   (`HCLOUD_NETWORK_ROUTES_ENABLED=false`), nem do limite de rotas da rede hcloud.
 
 ### Pod Security Admission (`baseline`)
-- **Papel:** recusa pods privilegiados, com `hostPath` ou `hostNetwork` fora do `kube-system`. `monitoring` e
-  `velero` são exceções explícitas (`privileged`), e `capacity` é `restricted`.
+- **Papel:** recusa pods privilegiados, com `hostPath` ou `hostNetwork` fora do `kube-system`. `monitoring`,
+  `velero` e `tsuru-build` (BuildKit) são exceções explícitas (`privileged`), e `capacity` é `restricted`.
 - **Por quê:** é nativo do Kubernetes, sem webhook extra. Fica nos drop-ins do RKE2 nos masters, aplicados com
   `sync-masters.sh`.
 - **ADR:** [0018](adr/0018-pod-security-baseline.md)
@@ -251,6 +251,18 @@ alternativas descartadas.
 - **Por quê:** projetos, robots, OIDC, retenção e scan num registry só, com imagens arm64 a partir da 2.16. O
   nome público com IP privado deixa os nós baixarem imagens sem enxergar a zona interna.
 - **ADR:** [0033](adr/0033-harbor-registry.md)
+
+## PaaS
+
+### Tsuru
+- **Papel:** `tsuru app create` / `tsuru app deploy` para os times. API em `https://tsuru.int.devcomm.com.br` (só
+  VPN), login pelo Pocket ID; banco no MongoDB do Percona; imagens construídas pelo BuildKit (deploy-agent) e
+  guardadas no Harbor. Todo app nasce em `https://<app>.apps.int.devcomm.com.br`, só pela VPN, e fica público
+  apenas com `tsuru cname add` de um nome fora da zona interna (uma MutatingAdmissionPolicy move esse Ingress
+  para o entrypoint público).
+- **Por quê:** PaaS de git-push que roda sobre o cluster que já existe, com times, papéis e quotas. Os charts
+  separados evitam o MongoDB, o ingress-nginx e as senhas fixas do `tsuru-stack`.
+- **ADR:** [0034](adr/0034-tsuru-paas.md), [0035](adr/0035-tsuru-oidc-pocket-id.md)
 
 ## Infraestrutura como código e operação
 

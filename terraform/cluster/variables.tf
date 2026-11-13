@@ -340,3 +340,54 @@ variable "redis_exporter_image_tag" {
   type        = string
   default     = "v1.89.0"
 }
+
+variable "tsuru_oidc" {
+  description = "Tsuru's Pocket ID client from terraform/identity's tsuru_oidc output (tsuru-oidc.auto.tfvars.json, docs/operations.md). Tsuru is installed only when this and tsuru_registry are set."
+  type = object({
+    client_id     = string
+    callback_port = number
+  })
+  default = null
+}
+
+variable "tsuru_registry" {
+  description = "Harbor robot for Tsuru from terraform/registry's tsuru_registry output (tsuru-registry.auto.tfvars.json)."
+  type = object({
+    server   = string
+    project  = string
+    username = string
+    password = string
+  })
+  default   = null
+  sensitive = true
+}
+
+variable "tsuru_oidc_valid_claims" {
+  description = "Extra claims Tsuru requires in Pocket ID access tokens, compared as plain strings. Pocket ID has no string claim that names the client today (ADR 0035)."
+  type        = map(string)
+  default     = {}
+}
+
+variable "tsuru_api_chart_version" {
+  description = "tsuru-api chart version (ADR 0034)."
+  type        = string
+  default     = "0.3.12"
+}
+
+variable "tsuru_router_chart_version" {
+  description = "kubernetes-router chart version."
+  type        = string
+  default     = "0.1.17"
+}
+
+variable "tsuru_deploy_agent_chart_version" {
+  description = "deploy-agent chart version."
+  type        = string
+  default     = "1.6.1"
+}
+
+variable "buildkit_image_tag" {
+  description = "moby/buildkit tag for Tsuru builds (multi-arch)."
+  type        = string
+  default     = "v0.34.2"
+}

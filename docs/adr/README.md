@@ -40,3 +40,5 @@ Para criar um ADR, copie [`template.md`](template.md) para o próximo número li
 | [0031](0031-postgres-cloudnativepg.md) | PostgreSQL com o CloudNativePG, backups pelo plugin Barman Cloud no R2 | Aceito |
 | [0032](0032-redis-operator.md) | Redis com o operator da OT-Container-Kit (Redis 7.2, BSD) | Aceito |
 | [0033](0033-harbor-registry.md) | Harbor como registry: nome público com IP privado, banco no CloudNativePG, Redis do operator | Aceito |
+| [0034](0034-tsuru-paas.md) | Tsuru como PaaS: apps internos por padrão, públicos por `tsuru cname add` | Aceito |
+| [0035](0035-tsuru-oidc-pocket-id.md) | Login do Tsuru pelo Pocket ID | Aceito |

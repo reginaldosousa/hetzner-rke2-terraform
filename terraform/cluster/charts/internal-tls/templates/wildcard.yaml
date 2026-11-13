@@ -1,25 +1,32 @@
 {{- /*
 One wildcard for every internal app (docs/adr/0028). DNS-01 only writes a TXT
 record, so the zone needs no public A records, and Certificate Transparency
-logs show only *.<zone>, not each app's name.
+logs show only *.<zone>, not each app's name. extraWildcards adds deeper
+levels a single-label wildcard can't cover (Tsuru's *.apps.<zone>, ADR 0034).
 */}}
 {{- $domain := required "internalDomain is required" .Values.internalDomain }}
+{{- $certs := list (dict "name" "internal-wildcard" "domain" $domain) }}
+{{- range .Values.extraWildcards }}
+{{- $certs = append $certs (dict "name" (printf "internal-wildcard-%s" (. | replace "." "-")) "domain" (printf "%s.%s" . $domain)) }}
+{{- end }}
+{{- range $certs }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: internal-wildcard
-  namespace: {{ .Release.Namespace }}
+  name: {{ .name }}
+  namespace: {{ $.Release.Namespace }}
 spec:
-  secretName: internal-wildcard-tls
+  secretName: {{ .name }}-tls
   dnsNames:
-    - {{ printf "*.%s" $domain | quote }}
+    - {{ printf "*.%s" .domain | quote }}
   privateKey:
     algorithm: ECDSA
     size: 256
   issuerRef:
     kind: ClusterIssuer
-    name: {{ .Values.issuer }}
+    name: {{ $.Values.issuer }}
+{{- end }}
 ---
 # Traefik's default store: routers with TLS and no secret of their own pick a
 # certificate from it by SNI. Only the store named "default" is used, and the
@@ -33,4 +40,6 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   certificates:
-    - secretName: internal-wildcard-tls
+    {{- range $certs }}
+    - secretName: {{ .name }}-tls
+    {{- end }}

@@ -1,0 +1,311 @@
+# Tsuru (ADR 0034, 0035): API, router and build agent, one chart each. Apps are
+# internal (<app>.apps.<internal domain>, VPN only) until `tsuru cname add`
+# gives them a public host (the mutation policy in internal-apps.tf). Created
+# only once identity's tsuru_oidc and registry's tsuru_registry are set.
+locals {
+  tsuru_enabled     = var.tsuru_oidc != null && var.tsuru_registry != null
+  tsuru_api_host    = "tsuru.${local.internal_domain}"
+  tsuru_apps_domain = "apps.${local.internal_domain}"
+  # Harbor's host; the image path also needs its project (clusters.defaults below).
+  tsuru_registry_host = local.tsuru_enabled ? var.tsuru_registry.server : ""
+  # Internal-only routing for every Ingress the router creates (ADR 0027).
+  tsuru_router_annotations = {
+    "traefik.ingress.kubernetes.io/router.entrypoints" = "internal"
+    "traefik.ingress.kubernetes.io/router.tls"         = "true"
+  }
+}
+
+resource "kubernetes_namespace_v1" "tsuru" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name = "tsuru-system" # the charts' defaults assume this name
+  }
+}
+
+# BuildKit runs privileged (it builds images with its own snapshotter), so it
+# gets a namespace of its own as an explicit exception to the baseline
+# (ADR 0018, 0034).
+resource "kubernetes_namespace_v1" "tsuru_build" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name = "tsuru-build"
+    labels = {
+      "pod-security.kubernetes.io/enforce" = "privileged"
+    }
+  }
+}
+
+resource "random_password" "tsuru_router" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  length  = 32
+  special = false
+}
+
+# Expanded by Tsuru's config ($MONGODB_URL, $ROUTER_AUTHORIZATION), so neither
+# lands in its ConfigMap. The chart uppercases each key into the env name.
+resource "kubernetes_secret_v1" "tsuru_api_env" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name      = "tsuru-api-env"
+    namespace = kubernetes_namespace_v1.tsuru[0].metadata[0].name
+  }
+
+  data = {
+    mongodb_url = local.mongodb_tsuru_uri
+    # A header, never the URL: Tsuru prints the router URL in API error
+    # messages, so credentials there leak to any user who hits an error.
+    router_authorization = "Basic ${base64encode("tsuru:${random_password.tsuru_router[0].result}")}"
+  }
+}
+
+resource "helm_release" "tsuru_router" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  name       = "kubernetes-router"
+  namespace  = kubernetes_namespace_v1.tsuru[0].metadata[0].name
+  repository = "https://tsuru.github.io/charts"
+  chart      = "kubernetes-router"
+  version    = var.tsuru_router_chart_version
+
+  values = [yamlencode({
+    image = { pullPolicy = "IfNotPresent" }
+    # Only the API talks to it; the chart's default would buy a Hetzner LB.
+    service         = { type = "ClusterIP" }
+    controllerModes = ["ingress"]
+    ingressExpose   = { domain = local.tsuru_apps_domain }
+    arguments = concat(
+      ["-ingress-class", "traefik", "-use-ingress-class-name=true"],
+      flatten([for k, v in local.tsuru_router_annotations : ["-k8s-annotations", "${k}=${v}"]]),
+    )
+    api = { username = "tsuru" }
+    resources = {
+      requests = { cpu = "20m", memory = "64Mi" }
+      limits   = { memory = "256Mi" }
+    }
+  })]
+
+  set_sensitive = [{
+    name  = "api.password"
+    value = random_password.tsuru_router[0].result
+  }]
+}
+
+resource "helm_release" "tsuru_deploy_agent" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  name       = "deploy-agent"
+  namespace  = kubernetes_namespace_v1.tsuru_build[0].metadata[0].name
+  repository = "https://tsuru.github.io/charts"
+  chart      = "deploy-agent"
+  version    = var.tsuru_deploy_agent_chart_version
+
+  values = [yamlencode({
+    deployAgent = {
+      image = { pullPolicy = "IfNotPresent" }
+      resources = {
+        requests = { cpu = "20m", memory = "64Mi" }
+        limits   = { memory = "256Mi" }
+      }
+      # Push credentials for Harbor's tsuru project (terraform/registry).
+      dockerConfig = jsonencode({
+        auths = {
+          (var.tsuru_registry.server) = {
+            auth = base64encode("${var.tsuru_registry.username}:${var.tsuru_registry.password}")
+          }
+        }
+      })
+    }
+    buildkit = {
+      # The chart's default (v0.10) predates current Dockerfile features.
+      image = { tag = var.buildkit_image_tag, pullPolicy = "IfNotPresent" }
+      resources = {
+        requests = { cpu = "250m", memory = "512Mi" }
+        limits   = { memory = "2Gi" }
+      }
+    }
+  })]
+}
+
+resource "helm_release" "tsuru_api" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  name       = "tsuru-api"
+  namespace  = kubernetes_namespace_v1.tsuru[0].metadata[0].name
+  repository = "https://tsuru.github.io/charts"
+  chart      = "tsuru-api"
+  version    = var.tsuru_api_chart_version
+
+  values = [yamlencode({
+    image      = { pullPolicy = "IfNotPresent" }
+    secretName = kubernetes_secret_v1.tsuru_api_env[0].metadata[0].name
+    secretKeys = keys(kubernetes_secret_v1.tsuru_api_env[0].data)
+
+    # TLS ends at Traefik; the API speaks HTTP behind it.
+    service = { type = "ClusterIP", httpsOnly = false }
+    ingress = {
+      enabled          = true
+      ingressClassName = "traefik"
+      annotations      = local.tsuru_router_annotations
+      hosts            = [{ host = local.tsuru_api_host, paths = [{ path = "/", pathType = "Prefix" }] }]
+    }
+
+    resources = {
+      requests = { cpu = "50m", memory = "128Mi" }
+      limits   = { memory = "512Mi" }
+    }
+
+    tsuruConfig = {
+      host   = "https://${local.tsuru_api_host}"
+      useTLS = false
+      debug  = false
+
+      database = { mongodbURL = "$MONGODB_URL", databaseName = "tsuru" }
+      queue    = { mongodbURL = "$MONGODB_URL", databaseName = "tsuru" }
+
+      # Pocket ID only (ADR 0035). OIDC can't create users through the API, so
+      # POST /users answers 501: user-registration only lets a Pocket ID login
+      # create its own user. Adding "native" here would reopen anonymous signup.
+      authBlock = {
+        scheme            = "oidc"
+        user-registration = true
+        oidc = {
+          client-id        = var.tsuru_oidc.client_id
+          scopes           = ["openid", "email", "profile", "groups"]
+          auth-url         = "${local.infra.oidc_issuer_url}/authorize"
+          token-url        = "${local.infra.oidc_issuer_url}/api/oidc/token"
+          jwks-url         = "${local.infra.oidc_issuer_url}/.well-known/jwks.json"
+          callback-port    = var.tsuru_oidc.callback_port
+          groups-in-claims = true
+          # Tsuru doesn't check the audience, and Pocket ID's access tokens carry
+          # no azp/client_id and a list aud, which plain-string valid-claims
+          # can't match (ADR 0035). iss at least pins the issuer.
+          valid-claims = merge({ iss = local.infra.oidc_issuer_url }, var.tsuru_oidc_valid_claims)
+        }
+      }
+
+      provisioner = "kubernetes"
+      routers = {
+        ingress-router = {
+          type    = "api"
+          api-url = "http://kubernetes-router.${kubernetes_namespace_v1.tsuru[0].metadata[0].name}/api/ingress"
+          # Each header is read with GetString, which expands $ENV.
+          headers = { Authorization = "$ROUTER_AUTHORIZATION" }
+        }
+      }
+      docker = {
+        registry             = local.tsuru_registry_host
+        repository-namespace = var.tsuru_registry.project
+        router               = "ingress-router"
+        # Image GC refuses to start without it: removes app images Tsuru no
+        # longer uses (Harbor's retention covers the rest).
+        gc = { dry-run = false }
+      }
+      # Defaults for the "local" cluster Tsuru registers on first start. The
+      # pull secret (docker-config-json) is JSON, which the config parser turns
+      # into a map, so it is set on the cluster at bootstrap (docs/operations.md).
+      clusters = {
+        defaults = {
+          build-service-address = "dns:///deploy-agent.${kubernetes_namespace_v1.tsuru_build[0].metadata[0].name}:80"
+          build-service-tls     = "false"
+          # The Kubernetes build names images <registry>/app-<name> from this
+          # key and ignores docker:repository-namespace, so the Harbor project
+          # goes here.
+          registry                      = "${local.tsuru_registry_host}/${var.tsuru_registry.project}"
+          registry-insecure             = "false"
+          disable-default-node-selector = "true"
+        }
+      }
+    }
+  })]
+
+  depends_on = [helm_release.mongodb, helm_release.tsuru_router, helm_release.tsuru_deploy_agent]
+}
+
+# The router's chart RBAC has no access to Secrets or cert-manager, which cname
+# certificates need (`tsuru certificate issuer set`). A Role in the apps'
+# namespace only, so the router can't read Secrets anywhere else.
+locals {
+  # Tsuru's local cluster puts apps in "default" unless the cluster's custom
+  # "namespace" key says otherwise.
+  tsuru_apps_namespace = "default"
+}
+
+resource "kubernetes_role_v1" "tsuru_router_certs" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name      = "tsuru-router-certs"
+    namespace = local.tsuru_apps_namespace
+  }
+
+  rule {
+    api_groups = [""]
+    resources  = ["secrets"]
+    verbs      = ["get"]
+  }
+  rule {
+    api_groups = ["cert-manager.io"]
+    resources  = ["certificates"]
+    verbs      = ["get", "create", "update", "delete"]
+  }
+  rule {
+    api_groups = ["cert-manager.io"]
+    resources  = ["issuers"]
+    verbs      = ["get"]
+  }
+}
+
+resource "kubernetes_role_binding_v1" "tsuru_router_certs" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name      = "tsuru-router-certs"
+    namespace = local.tsuru_apps_namespace
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role_v1.tsuru_router_certs[0].metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = "kubernetes-router"
+    namespace = kubernetes_namespace_v1.tsuru[0].metadata[0].name
+  }
+}
+
+# ClusterIssuers are cluster-scoped; reading them reveals no secrets.
+resource "kubernetes_cluster_role_v1" "tsuru_router_clusterissuers" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name = "tsuru-router-clusterissuers"
+  }
+  rule {
+    api_groups = ["cert-manager.io"]
+    resources  = ["clusterissuers"]
+    verbs      = ["get"]
+  }
+}
+
+resource "kubernetes_cluster_role_binding_v1" "tsuru_router_clusterissuers" {
+  count = local.tsuru_enabled ? 1 : 0
+
+  metadata {
+    name = "tsuru-router-clusterissuers"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role_v1.tsuru_router_clusterissuers[0].metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = "kubernetes-router"
+    namespace = kubernetes_namespace_v1.tsuru[0].metadata[0].name
+  }
+}

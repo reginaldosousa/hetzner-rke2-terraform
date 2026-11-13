@@ -11,10 +11,17 @@ resource "pocketid_group" "vpn" {
   friendly_name = "VPN"
 }
 
+# Members may sign in to Tsuru and get the deploy role there (docs/adr/0035).
+resource "pocketid_group" "tsuru_devs" {
+  name          = "tsuru-devs"
+  friendly_name = "Tsuru developers"
+}
+
 locals {
   groups = {
     (pocketid_group.k8s_admins.name) = pocketid_group.k8s_admins.id
     (pocketid_group.vpn.name)        = pocketid_group.vpn.id
+    (pocketid_group.tsuru_devs.name) = pocketid_group.tsuru_devs.id
   }
   # "" until infra sets headscale_hostname. No try(): a missing output must
   # fail the plan, not plan the client (and its secret) away.
@@ -82,6 +89,24 @@ resource "pocketid_client" "harbor" {
 
   lifecycle {
     # A new client means a new secret: Harbor logins fail until registry is reapplied.
+    prevent_destroy = true
+  }
+}
+
+# Tsuru's CLI (docs/adr/0035): public client, authorization code on a fixed
+# localhost port (Pocket ID matches callbacks exactly). Its ID goes to
+# cluster's tsuru_oidc.
+resource "pocketid_client" "tsuru" {
+  name         = "tsuru"
+  is_public    = true
+  pkce_enabled = true
+  # The CLI redirects to http://localhost:<port> without a trailing slash;
+  # Pocket ID matches callbacks exactly, so both forms are listed.
+  callback_urls       = ["http://localhost:38080", "http://localhost:38080/"]
+  allowed_user_groups = [pocketid_group.k8s_admins.id, pocketid_group.tsuru_devs.id]
+
+  lifecycle {
+    # The ID is in Tsuru's config; a new client needs a cluster apply.
     prevent_destroy = true
   }
 }

@@ -8,6 +8,7 @@
 | Gateway `tcp/443`, `udp/3478`, `udp/41641` | Headscale (controle, DERP, ACME), STUN e caminho direto do Tailscale. Login só pelo Pocket ID, grupo `vpn` ([ADR 0025](adr/0025-headscale-oidc-vpn.md)) |
 | LB de ingress `80/443` | Traefik; só serve o que existe como Ingress. HTTP vira 308 para HTTPS. Hosts de `internal_domain` não podem estar nos entrypoints dele (política de admissão, [ADR 0027](adr/0027-internal-apps-dns.md)) |
 | Pocket ID (`auth.devcomm.com.br`) | Login só por passkey; IP do operador (`pocket_id_allowed_cidrs`) até o `/setup` criar o primeiro admin ([ADR 0023](adr/0023-oidc-pocket-id.md)) |
+| Apps do Tsuru com cname | Um `tsuru cname add` de um host fora de `internal_domain` publica o app no LB público (MutatingAdmissionPolicy `tsuru-cname-public`). Só papéis com `app.update.cname.add` fazem isso; sem cname, o app fica só na VPN ([ADR 0034](adr/0034-tsuru-paas.md)) |
 | Harbor (`harbor.devcomm.com.br`) | Registro DNS público, mas aponta para o LB interno (IP privado): só a rede privada e a tailnet chegam. Login pelo Pocket ID; robots com escopo de projeto ([ADR 0033](adr/0033-harbor-registry.md)) |
 | Tudo o mais | Nada tem IP público. Da VPN só SSH, API do Kubernetes, o DNS interno do gateway e HTTP(S) do LB interno (só privado); etcd e kubelet só pela rede privada |
 
@@ -41,6 +42,8 @@ ausência de interface pública ([ADR 0003](adr/0003-private-network-wireguard-g
 | Senha do Redis do Harbor | state do `cluster` (`random_password`) → Secret `harbor/harbor-redis` e **ConfigMaps do Harbor** (o chart a escreve nas URLs de conexão) | Redis (operator) e Harbor |
 | Secret do client OIDC do Harbor | state do `identity` → API do Harbor (atributo write-only do root `registry`, fora do state dele) | Harbor |
 | Senha do robot `tsuru` do Harbor | state do `registry` (`random_password`) → output `tsuru_registry` | Tsuru (push no build, pull nos pods dos apps) |
+| Senha do router do Tsuru | state do `cluster` (`random_password`) → Secrets `tsuru-system/tsuru-api-env` (header `Authorization` pronto) e `kubernetes-router` | API do Tsuru, por variável de ambiente; nunca no ConfigMap nem na URL do router, que aparece nas mensagens de erro da API |
+| Credencial de push do Harbor para o Tsuru | state do `registry` → `tsuru-registry.auto.tfvars.json` do `cluster` → Secret do deploy-agent em `tsuru-build`; a de pull vai para os dados do cluster no MongoDB (`docker-config-json`) | BuildKit (push), pods dos apps (pull) |
 | Chave de criptografia do Pocket ID | state do `cluster` (`random_bytes`) → Secret `pocket-id/pocket-id` | Pocket ID; sem ela o banco fica ilegível |
 | API key do Pocket ID | `terraform/identity/terraform.tfvars` | operador; admin total das identidades, com validade, **nunca** vai para o cluster |
 | Secret do client OIDC do Headscale | state do `identity` → `terraform.tfvars` do `infra` → `/etc/headscale/oidc_client_secret` no gateway | Headscale; o `sync-gateway.sh` nunca mostra o conteúdo |
@@ -113,8 +116,11 @@ sem criptografia do lado do cliente. Quem tem o token do R2 lê tudo, por isso e
   token. Pods comuns são bloqueados pelo tier `metadata-guard` do Calico
   ([ADR 0017](adr/0017-block-instance-metadata-for-pods.md)). Ainda leem: o `hcloud-csi` (exceção) e pods com
   `hostNetwork`, que só podem existir no `kube-system`.
-- **Namespaces `privileged`**: `monitoring` (node-exporter e `otel-agent`, que lê `/var/log/pods`) e `velero` (node agent) aceitam `hostPath` e
-  `hostNetwork`. Quem pode criar pods neles tem root nos nós. Os dois são gerenciados só pelo Terraform.
+- **Namespaces `privileged`**: `monitoring` (node-exporter e `otel-agent`, que lê `/var/log/pods`), `velero` (node agent)
+  e `tsuru-build` (BuildKit) aceitam `hostPath`, `hostNetwork` e containers privilegiados. Quem pode criar pods
+  neles tem root nos nós. Os três são gerenciados só pelo Terraform. O BuildKit executa os builds dos apps: um
+  Dockerfile malicioso pode escapar para o nó, então quem faz deploy no Tsuru é tão confiável quanto quem tem
+  acesso aos workers ([ADR 0034](adr/0034-tsuru-paas.md)).
 - **Wildcard interno**: quem lê o Secret `kube-system/internal-wildcard-tls` pode se passar por qualquer
   aplicação interna para quem resolver o nome até ele, o que só acontece pela VPN ou com DNS sequestrado.
 - **O código é público.** Qualquer um vê a arquitetura, os domínios, os IPs privados e o ID da conta

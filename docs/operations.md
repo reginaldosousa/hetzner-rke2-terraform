@@ -484,6 +484,67 @@ spec:
   rules: [{host: app.int.devcomm.com.br, http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: app, port: {number: 80}}}}]}}]
 ```
 
+## Tsuru
+
+API em `https://tsuru.int.devcomm.com.br`, só pela VPN ([ADR 0034](adr/0034-tsuru-paas.md),
+[0035](adr/0035-tsuru-oidc-pocket-id.md)). O `cluster` só instala o Tsuru quando `tsuru_oidc` e `tsuru_registry`
+existem.
+
+```bash
+# 1. Pocket ID: client tsuru e grupo tsuru-devs; Harbor: robot tsuru
+terraform -chdir=terraform/identity apply
+terraform -chdir=terraform/registry apply
+terraform -chdir=terraform/identity output -json tsuru_oidc \
+  | jq '{tsuru_oidc: .}' > terraform/cluster/tsuru-oidc.auto.tfvars.json
+terraform -chdir=terraform/registry output -json tsuru_registry \
+  | jq '{tsuru_registry: .}' > terraform/cluster/tsuru-registry.auto.tfvars.json
+# 2. Instala API, router e deploy-agent
+terraform -chdir=terraform/cluster plan -out=tfplan && terraform -chdir=terraform/cluster apply tfplan
+
+# 3. Primeiro admin: login pelo Pocket ID cria o usuário (sem papel); o tsurud dá AllowAll a ele.
+#    O CLI oficial não entra (state vazio; Pocket ID sem email no access token, ADR 0035): use o
+#    tsuru-client com patch (branch fix/oidc-state, `go build -o bin-local/tsuru ./tsuru`) e
+export TSURU_OIDC_BEARER=id_token                        # manda o ID token, que tem email e groups
+tsuru target add devcomm https://tsuru.int.devcomm.com.br -s
+tsuru login                                               # abre o Pocket ID
+tsuru user info                                           # e-mail e grupos vindos do Pocket ID
+kubectl -n tsuru-system exec deploy/tsuru-api -- tsurud root user create --config /etc/tsuru/tsuru.conf <seu email>
+tsuru role assign AllowAll --group k8s-admins             # API: POST /roles/{name}/group
+tsuru team create devs && tsuru role add deployer team && tsuru role permission add deployer app
+tsuru role assign deployer --group tsuru-devs devs
+# Credencial de pull dos apps (JSON; a config do Tsuru não aceita JSON, então vai nos dados do cluster)
+AUTH=$(terraform -chdir=terraform/registry output -json tsuru_registry | jq -r '"\(.username):\(.password)" | @base64')
+tsuru cluster update local --provisioner kubernetes \
+  --custom docker-config-json="{\"auths\":{\"harbor.devcomm.com.br\":{\"auth\":\"$AUTH\"}}}"
+
+# 4. Login do dia a dia: o mesmo tsuru login (callback em localhost:38080). Não há login por senha:
+#    com o Pocket ID fora do ar ninguém entra no Tsuru (ADR 0035); os apps seguem no ar.
+```
+
+Confira a sintaxe exata de `tsuru role` com `tsuru role --help`: os subcomandos mudam entre versões do CLI.
+
+**Deploy e publicação.** Todo app nasce interno, em `https://<app>.apps.int.devcomm.com.br` (wildcard próprio no
+TLSStore). Para publicar, adicione um nome **fora** de `int.devcomm.com.br` e peça o certificado:
+
+```bash
+tsuru app create hello --team devs                # sem plataforma: deploy por Dockerfile
+tsuru app deploy -a hello --dockerfile .           # BuildKit constrói e manda para harbor.devcomm.com.br/tsuru/app-hello
+curl https://hello.apps.int.devcomm.com.br          # só pela VPN
+tsuru cname add hello.devcomm.com.br -a hello      # vai para o LB público; external-dns cria o DNS
+tsuru certificate issuer set -a hello -c hello.devcomm.com.br letsencrypt-prod   # Let's Encrypt em ~2 min
+kubectl get ingress -n default -l router.tsuru.io/is-cname-ingress=true \
+  -o custom-columns=HOST:.spec.rules[0].host,EP:.metadata.annotations.traefik\\.ingress\\.kubernetes\\.io/router\\.entrypoints
+tsuru certificate issuer unset -a hello -c hello.devcomm.com.br -y
+tsuru cname remove hello.devcomm.com.br -a hello   # volta a ser só interno
+```
+
+Um cname dentro de `int.devcomm.com.br` continua interno (a mutação só vale para hosts todos fora da zona). Um
+domínio que não está em `external_dns_domains` precisa de um CNAME manual para o LB público. Testado em
+2026-11-11: público com certificado válido, interno na zona, e o registro some com o `cname remove`.
+
+Trocar a senha do router: o chart cria o Secret do router só na instalação (hook), então a troca é
+`terraform apply -replace='random_password.tsuru_router[0]' -replace='helm_release.tsuru_router[0]'`.
+
 ## Troubleshooting rápido
 
 | Sintoma | Causa provável |
